@@ -52,7 +52,7 @@ class TestExportValidation:
             "export",
             "--page-id", "test-page"
         ])
-        output = _strip_ansi(result.output)
+        _ = _strip_ansi(result.output)  # noqa: F841
 
         assert result.exit_code != 0
 
@@ -68,7 +68,7 @@ class TestExportValidation:
             "--page-id", "test-page",
             "--out", str(out_dir)
         ])
-        output = _strip_ansi(result.output)
+        _ = _strip_ansi(result.output)  # noqa: F841
 
         assert result.exit_code != 0
 
@@ -90,7 +90,7 @@ class TestExportIntegration:
             "--force",
             "--overwrite"
         ])
-        output = _strip_ansi(result.output)
+        _ = _strip_ansi(result.output)  # noqa: F841
 
         # Validates CLI parses all args without raising usage error
         assert result.exit_code != 0  # Will fail due to no real mock, that's expected
