@@ -16,17 +16,17 @@ jobs:
       with:
         python-version: '3.12' # Use the same Python version as in pyproject.toml
 
-    - name: Install dependencies with uv
-      # Use uv to install dev and test dependencies from pyproject.toml
-      run: uv install --group dev --group test
+    - name: Install uv
+      uses: astral-sh/setup-uv@v2
 
-    - name: Lint with ruff via uv
-      # Use uv run to execute ruff
+    - name: Install dependencies
+      run: uv sync
+
+    - name: Lint with ruff
       run: uv run ruff check .
 
-    - name: Test with pytest and coverage via uv
-      # Use uv run to execute pytest with coverage
-      run: uv run pytest --cov=src/noteshift --cov-report term .
+    - name: Test with pytest and coverage
+      run: uv run pytest --cov=noteshift --cov-report=term tests/
 
     # The following step for Codecov is optional and may require specific setup
     # - name: Upload coverage reports to Codecov
