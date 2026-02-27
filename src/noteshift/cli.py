@@ -93,6 +93,8 @@ def export(
         typer.echo("\nErrors")
         for error in result.errors:
             typer.echo(f"- {error}", err=True)
+        typer.echo("\nExport failed with errors.", err=True)
+        raise typer.Exit(code=1)
 
     typer.echo("\nExport complete.")
 
