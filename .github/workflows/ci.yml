@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12' # Use the same Python version as in pyproject.toml
+
+    - name: Install dependencies
+      # This command assumes uv is the chosen build tool and installs dev/test dependencies
+      # If poetry is used, this would be `poetry install --with dev,test`
+      run: |
+        pip install uv_build
+        uv install --upgrade --binding python --group dev --group test
+
+    - name: Lint with ruff
+      run: ruff check .
+
+    - name: Test with pytest and coverage
+      # This runs pytest with coverage, generating an XML report for CI platforms
+      # and a text report for the console.
+      run: pytest --cov=src/noteshift --cov-report xml --cov-report term .
+
+    - name: Upload coverage reports to Codecov
+      # This step requires a CODECOV_TOKEN environment variable to be set in GitHub secrets
+      # and the codecov-action to be configured.
+      # If not available, this step can be commented out or removed.
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }} # expected to be set in repository secrets
+        # fail_ci_if_error: true # Optional: fail the job if Codecov upload fails
+
