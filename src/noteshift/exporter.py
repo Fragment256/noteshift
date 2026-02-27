@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
 from noteshift.markdown import indent_lines, render_toggle, rich_text_plain
 from noteshift.notion import NotionClient
@@ -34,7 +35,6 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
     Not yet:
     - Link rewriting across notes
     - Attachments
-    - Databases
     """
 
     client = NotionClient(token)
@@ -64,6 +64,22 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
 
         lines: list[str] = [f"# {title}", ""]
         blocks = client.list_block_children(page_id)
+        # export any child databases found on this page
+        for b in blocks:
+            if b.get("type") == "child_database":
+                title_db = (b.get("child_database") or {}).get("title") or "Database"
+                ds_id = b.get("id")
+                if not ds_id:
+                    warnings.append(f"child_database missing id on page {page_id}")
+                    continue
+                res = export_child_database(
+                    client=client,
+                    data_source_id=ds_id,
+                    title=title_db,
+                    out_dir=page_dir,
+                )
+                warnings.extend(res.warnings)
+                files_written += res.files_written
         lines.extend(_render_blocks(client, blocks, indent=""))
         md_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 

@@ -30,10 +30,36 @@ class NotionClient:
         cursor: str | None = None
         with httpx.Client(timeout=30.0, headers=self._headers()) as client:
             while True:
-                params = {"page_size": 100}
+                params: dict[str, object] = {"page_size": 100}
                 if cursor:
                     params["start_cursor"] = cursor
-                r = client.get(f"https://api.notion.com/v1/blocks/{block_id}/children", params=params)
+                url = f"https://api.notion.com/v1/blocks/{block_id}/children"
+                r = client.get(url, params=params)
+                r.raise_for_status()
+                data = r.json()
+                results.extend(data.get("results", []))
+                if not data.get("has_more"):
+                    break
+                cursor = data.get("next_cursor")
+        return results
+
+    def get_data_source(self, data_source_id: str) -> dict:
+        with httpx.Client(timeout=30.0, headers=self._headers()) as client:
+            r = client.get(f"https://api.notion.com/v1/data_sources/{data_source_id}")
+            r.raise_for_status()
+            return r.json()
+
+    def query_data_source(self, data_source_id: str) -> list[dict]:
+        """Return all pages/rows in a data source (handles pagination)."""
+        results: list[dict] = []
+        cursor: str | None = None
+        with httpx.Client(timeout=60.0, headers=self._headers()) as client:
+            while True:
+                payload: dict[str, object] = {"page_size": 100}
+                if cursor:
+                    payload["start_cursor"] = cursor
+                url = f"https://api.notion.com/v1/data_sources/{data_source_id}/query"
+                r = client.post(url, json=payload)
                 r.raise_for_status()
                 data = r.json()
                 results.extend(data.get("results", []))
