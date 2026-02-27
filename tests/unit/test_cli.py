@@ -1,5 +1,6 @@
 """Tests for CLI module."""
 
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,27 +11,35 @@ from noteshift.cli import app
 runner = CliRunner()
 
 
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text."""
+    ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+    return ansi_escape.sub('', text)
+
+
 class TestCLIHelp:
     """Tests for CLI help messages."""
 
     def test_main_help(self) -> None:
         """Main help shows available commands."""
-        result = runner.invoke(app, ["--help"], color=False)
+        result = runner.invoke(app, ["--help"])
+        output = _strip_ansi(result.output)
 
         assert result.exit_code == 0
-        assert "export" in result.output
+        assert "export" in output
 
     def test_export_help(self) -> None:
         """Export command help shows all options."""
-        result = runner.invoke(app, ["export", "--help"], color=False)
+        result = runner.invoke(app, ["export", "--help"])
+        output = _strip_ansi(result.output)
 
         assert result.exit_code == 0
-        assert "--page-id" in result.output
-        assert "--out" in result.output
-        assert "--max-depth" in result.output
-        assert "--license-key" in result.output
-        assert "--force" in result.output
-        assert "--overwrite" in result.output
+        assert "--page-id" in output
+        assert "--out" in output
+        assert "--max-depth" in output
+        assert "--license-key" in output
+        assert "--force" in output
+        assert "--overwrite" in output
 
 
 class TestExportValidation:
@@ -42,7 +51,8 @@ class TestExportValidation:
         result = runner.invoke(app, [
             "export",
             "--page-id", "test-page"
-        ], color=False)
+        ])
+        output = _strip_ansi(result.output)
 
         assert result.exit_code != 0
 
@@ -57,7 +67,8 @@ class TestExportValidation:
             "export",
             "--page-id", "test-page",
             "--out", str(out_dir)
-        ], color=False)
+        ])
+        output = _strip_ansi(result.output)
 
         assert result.exit_code != 0
 
@@ -78,7 +89,8 @@ class TestExportIntegration:
             "--license-key", "DEMO",
             "--force",
             "--overwrite"
-        ], color=False)
+        ])
+        output = _strip_ansi(result.output)
 
         # Validates CLI parses all args without raising usage error
         assert result.exit_code != 0  # Will fail due to no real mock, that's expected
