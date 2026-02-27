@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
+from noteshift.checkpoint import Checkpoint, is_database_exported, is_page_exported
 from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
 from noteshift.markdown import indent_lines, render_toggle, rich_text_plain, rich_text_to_markdown
@@ -11,9 +12,16 @@ from noteshift.notion import NotionClient
 
 @dataclass
 class ExportResult:
-    pages_exported: int
-    files_written: int
-    warnings: list[str]
+    pages_exported: int = 0
+    files_written: int = 0
+    warnings: list[str] = field(default_factory=list)
+    databases_exported: int = 0
+    rows_exported: int = 0
+    attachments_downloaded: int = 0
+    # Tracking for checkpoint
+    _exported_page_ids: list[str] = field(default_factory=list, repr=False)
+    _exported_database_ids: list[str] = field(default_factory=list, repr=False)
+    _files_written: list[str] = field(default_factory=list, repr=False)
 
 
 def _page_title(page: dict) -> str:
@@ -32,16 +40,23 @@ def _get_attachment_info(block: dict) -> tuple[str | None, str | None, str | Non
 
     if btype == "image":
         url = payload.get("file", {}).get("url")
-        caption = rich_text_to_markdown(payload.get("caption"), page_map={}) # No internal links in captions
+        caption = rich_text_to_markdown(payload.get("caption"), page_map={})  # No internal links in captions
         return url, caption, "image"
     elif btype == "file":
         url = payload.get("file", {}).get("url")
-        caption = rich_text_to_markdown(payload.get("caption"), page_map={}) # No internal links in captions
+        caption = rich_text_to_markdown(payload.get("caption"), page_map={})  # No internal links in captions
         return url, caption, "file"
     return None, None, None
 
 
-def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportResult:
+def export_page_tree(
+    *,
+    token: str,
+    root_page_id: str,
+    out_dir: Path,
+    checkpoint: Checkpoint | None = None,
+    force: bool = False,
+) -> ExportResult:
     """Export a page and its subpages.
 
     MVP scope for recursion:
@@ -54,19 +69,21 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
     client = NotionClient(token)
     policy = FilenamePolicy()
     # Stores {page_id: relative_md_path} without extension for Obsidian compatibility
-    page_map: dict[str, str] = {}  
+    page_map: dict[str, str] = {}
 
-    pages_exported = 0
-    files_written = 0
-    warnings: list[str] = []
+    result = ExportResult()
 
     visited: set[str] = set()
 
     def export_one(page_id: str, parent_dir: Path) -> None:
-        nonlocal pages_exported, files_written
+        nonlocal result
         if page_id in visited:
             return
         visited.add(page_id)
+
+        # Skip if already exported (unless force mode)
+        if not force and is_page_exported(page_id, checkpoint):
+            return
 
         page = client.get_page(page_id)
         title = _page_title(page)
@@ -76,7 +93,7 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
 
         page_dir = parent_dir / stem
         page_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Define the output markdown path and create the assets directory
         md_path = page_dir / "index.md"
         assets_dir = page_dir / "_assets"
@@ -92,34 +109,43 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
         rendered_content_lines: list[str] = []
         for b in blocks:
             btype = b.get("type")
-            
+
             if btype == "child_database":
-                title_db = (b.get("child_database") or {}).get("title") or "Database"
                 ds_id = b.get("id")
                 if not ds_id:
-                    warnings.append(f"child_database missing id on page {page_id}")
+                    result.warnings.append(f"child_database missing id on page {page_id}")
                     continue
+
+                # Skip if already exported (unless force mode)
+                if not force and is_database_exported(ds_id, checkpoint):
+                    continue
+
+                title_db = (b.get("child_database") or {}).get("title") or "Database"
                 res = export_child_database(
                     client=client,
                     data_source_id=ds_id,
                     title=title_db,
                     out_dir=page_dir,
                 )
-                warnings.extend(res.warnings)
-                files_written += res.files_written
-            
+                result.warnings.extend(res.warnings)
+                result.files_written += res.files_written
+                result.databases_exported += res.data_sources_exported
+                result.rows_exported += res.rows_exported
+                result.attachments_downloaded += res.attachments_downloaded
+                result._exported_database_ids.append(ds_id)
+
             elif btype in {"image", "file"}:
                 url, caption, _ = _get_attachment_info(b)
                 if url:
                     try:
-                        filename = Path(url.split("/")[-1].split("?")[0]) # Basic extraction
+                        filename = Path(url.split("/")[-1].split("?")[0])  # Basic extraction
                         # Sanitize filename and ensure it's unique within _assets
                         sanitized_filename = Path(policy.slug(str(filename)))
                         deduped_filename = deduper.dedupe(str(sanitized_filename))
                         file_path = assets_dir / deduped_filename
 
                         client.download_file(url, file_path)
-                        
+
                         # Format markdown reference
                         # Use relative path from md_path to the asset
                         asset_md_ref = Path("_assets") / deduped_filename
@@ -129,13 +155,13 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
                             rendered_content_lines.append(f"![{caption}]({asset_md_ref_str})")
                         else:
                             rendered_content_lines.append(f"![{deduped_filename}]({asset_md_ref_str})")
-                        
-                        files_written += 1
 
-                    except Exception as e: # noqa: BLE001
-                        warnings.append(f"Failed to download attachment {url} for page {title}: {e}")
+                        result.attachments_downloaded += 1
+
+                    except Exception as e:  # noqa: BLE001
+                        result.warnings.append(f"Failed to download attachment {url} for page {title}: {e}")
                 else:
-                    warnings.append(f"Attachment block missing URL or type on page {title}")
+                    result.warnings.append(f"Attachment block missing URL or type on page {title}")
 
             else:
                 # For other block types, treat them as content to be rendered
@@ -144,14 +170,18 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
 
         # Append blocks that weren't attachments
         lines.extend(_render_blocks(client, blocks, indent="", page_map=page_map))
-        
+
         # Add downloaded attachments to the content
         lines.extend(rendered_content_lines)
 
         md_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
-        pages_exported += 1
-        files_written += 1 # Count the markdown file itself
+        result.pages_exported += 1
+        result.files_written += 1  # Count the markdown file itself
+        result._exported_page_ids.append(page_id)
+
+        # Track file paths for checkpoint
+        result._files_written.append(str(md_path.relative_to(out_dir)))
 
         # recurse into child pages
         for b in blocks:
@@ -161,9 +191,7 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
                     export_one(child_id, page_dir)
 
     export_one(root_page_id, out_dir)
-    return ExportResult(
-        pages_exported=pages_exported, files_written=files_written, warnings=warnings
-    )
+    return result
 
 
 def _render_blocks(
