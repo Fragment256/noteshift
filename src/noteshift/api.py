@@ -89,7 +89,10 @@ def preflight(plan: ExportPlan, config: NoteshiftConfig) -> PreflightReport:
     out_dir = config.out_dir.resolve()
     if out_dir.exists():
         if not out_dir.is_dir():
-            errors.append(f"Output path {out_dir} exists and is not a directory. Choose a directory path for out_dir.")
+            errors.append(
+                f"Output path {out_dir} exists and is not a directory. "
+                "Choose a directory path for out_dir."
+            )
         elif any(out_dir.iterdir()) and not config.overwrite:
             errors.append(f"Output dir {out_dir} is not empty. Use overwrite=True or choose a new out_dir.")
 
