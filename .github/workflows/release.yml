@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # Trigger on tags like v1.0.0, v2.1.0, etc.
+      - 'v*'
 
 jobs:
   build:
@@ -11,26 +11,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12' # Match Python version in pyproject.toml
-
-    - name: Install build dependencies
-      # Installs build tools and package managers
-      run: |
-        pip install uv_build
-        uv install --upgrade --binding python build wheel twine
+    - name: Install uv
+      uses: astral-sh/setup-uv@v2
 
     - name: Build package
-      # This command builds the sdist and wheel distribution packages.
-      # It uses the standard `python -m build` command.
-      run: python -m build --sdist --wheel --outdir dist/ .
+      run: uv build
 
-    # Optional: Upload to PyPI (requires TWINE_USERNAME and TWINE_PASSWORD in secrets)
+    # Optional: Publish to PyPI
     # - name: Publish to PyPI
     #   if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     #   env:
-    #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-    #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-    #   run: twine upload dist/*
+    #     UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+    #   run: uv publish
