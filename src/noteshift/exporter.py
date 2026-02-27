@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import mimetypes
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,21 +27,36 @@ def _page_title(page: dict) -> str:
     return "Untitled"
 
 
+def _get_attachment_info(block: dict) -> tuple[str | None, str | None, str | None]:
+    """Extracts URL, caption, and type from attachment blocks."""
+    btype = block.get("type")
+    payload = block.get(btype, {}) if btype else {}
+
+    if btype == "image":
+        url = payload.get("file", {}).get("url")
+        caption = rich_text_to_markdown(payload.get("caption"), page_map={}) # No internal links in captions
+        return url, caption, "image"
+    elif btype == "file":
+        url = payload.get("file", {}).get("url")
+        caption = rich_text_to_markdown(payload.get("caption"), page_map={}) # No internal links in captions
+        return url, caption, "file"
+    return None, None, None
+
+
 def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportResult:
     """Export a page and its subpages.
 
     MVP scope for recursion:
     - Follow `child_page` blocks.
     - Create subfolders mirroring the page tree.
-
-    Not yet:
-    - Link rewriting across notes
-    - Attachments
+    - Rewrite internal links.
+    - Download attachments and relink them.
     """
 
     client = NotionClient(token)
     policy = FilenamePolicy()
-    page_map: dict[str, str] = {}  # Stores {page_id: relative_md_path}
+    # Stores {page_id: relative_md_path} without extension for Obsidian compatibility
+    page_map: dict[str, str] = {}  
 
     pages_exported = 0
     files_written = 0
@@ -61,15 +78,24 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
 
         page_dir = parent_dir / stem
         page_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Define the output markdown path and create the assets directory
         md_path = page_dir / "index.md"
+        assets_dir = page_dir / "_assets"
+        assets_dir.mkdir(parents=True, exist_ok=True)
+
         # Store the relative path for link mapping
         page_map[page_id] = md_path.relative_to(out_dir).with_suffix("").as_posix()
 
         lines: list[str] = [f"# {title}", ""]
         blocks = client.list_block_children(page_id)
-        # export any child databases found on this page
+
+        # Process blocks: render content, download attachments
+        rendered_content_lines: list[str] = []
         for b in blocks:
-            if b.get("type") == "child_database":
+            btype = b.get("type")
+            
+            if btype == "child_database":
                 title_db = (b.get("child_database") or {}).get("title") or "Database"
                 ds_id = b.get("id")
                 if not ds_id:
@@ -83,15 +109,51 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
                 )
                 warnings.extend(res.warnings)
                 files_written += res.files_written
+            
+            elif btype in {"image", "file"}:
+                url, caption, _ = _get_attachment_info(b)
+                if url:
+                    try:
+                        filename = Path(url.split("/")[-1].split("?")[0]) # Basic extraction
+                        # Sanitize filename and ensure it's unique within _assets
+                        sanitized_filename = Path(policy.slug(str(filename)))
+                        deduped_filename = deduper.dedupe(str(sanitized_filename))
+                        file_path = assets_dir / deduped_filename
+
+                        client.download_file(url, file_path)
+                        
+                        # Format markdown reference
+                        # Use relative path from md_path to the asset
+                        asset_md_ref = Path("_assets") / deduped_filename
+                        asset_md_ref_str = asset_md_ref.as_posix()
+
+                        if caption:
+                            rendered_content_lines.append(f"![{caption}]({asset_md_ref_str})")
+                        else:
+                            rendered_content_lines.append(f"![{deduped_filename}]({asset_md_ref_str})")
+                        
+                        files_written += 1
+
+                    except Exception as e: # noqa: BLE001
+                        warnings.append(f"Failed to download attachment {url} for page {title}: {e}")
+                else:
+                    warnings.append(f"Attachment block missing URL or type on page {title}")
+
+            else:
+                # For other block types, treat them as content to be rendered
+                # These will be processed by _render_blocks later
+                pass
+
+        # Append blocks that weren't attachments
+        lines.extend(_render_blocks(client, blocks, indent="", page_map=page_map))
         
-        # Use the updated rich_text_to_markdown renderer
-        rendered_blocks = _render_blocks(client, blocks, indent="", page_map=page_map)
-        lines.extend(rendered_blocks)
+        # Add downloaded attachments to the content
+        lines.extend(rendered_content_lines)
 
         md_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
         pages_exported += 1
-        files_written += 1
+        files_written += 1 # Count the markdown file itself
 
         # recurse into child pages
         for b in blocks:
@@ -112,14 +174,18 @@ def _render_blocks(
     indent: str,
     page_map: dict[str, str],  # Pass page_map to render_blocks
 ) -> list[str]:
+    """Renders blocks that are not attachments or child_databases."""
     out: list[str] = []
 
     for b in blocks:
         btype = b.get("type")
         payload = b.get(btype, {}) if btype else {}
 
+        if btype in {"image", "file", "child_database", "child_page"}:
+            # Skip block types handled elsewhere or recursively
+            continue
+
         if btype == "paragraph":
-            # Use rich_text_to_markdown for paragraphs
             text = rich_text_to_markdown(payload.get("rich_text"), page_map)
             if text:
                 out.append(indent + text)
@@ -127,7 +193,6 @@ def _render_blocks(
 
         elif btype in {"heading_1", "heading_2", "heading_3"}:
             level = {"heading_1": "#", "heading_2": "##", "heading_3": "###"}[btype]
-            # Use rich_text_to_markdown for headings
             text = rich_text_to_markdown(payload.get("rich_text"), page_map)
             out.append(indent + f"{level} {text}")
             out.append("")
@@ -167,8 +232,7 @@ def _render_blocks(
             out.append("")
 
         else:
-            # MVP: preserve children even if we don't understand the block.
-            # This is critical to avoid silent drops in nested structures.
+            # For unhandled block types, preserve children if they exist
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
                 out.extend(_render_blocks(client, children, indent=indent, page_map=page_map))

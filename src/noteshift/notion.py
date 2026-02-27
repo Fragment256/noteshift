@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -67,3 +68,11 @@ class NotionClient:
                     break
                 cursor = data.get("next_cursor")
         return results
+
+    def download_file(self, url: str, dest: Path) -> None:
+        """Download a file from URL to destination path using httpx."""
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+            r = client.get(url)
+            r.raise_for_status()
+            dest.write_bytes(r.content)
