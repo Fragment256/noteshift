@@ -87,8 +87,11 @@ def preflight(plan: ExportPlan, config: NoteshiftConfig) -> PreflightReport:
         errors.append("max_depth must be >= 0.")
 
     out_dir = config.out_dir.resolve()
-    if out_dir.exists() and any(out_dir.iterdir()) and not config.overwrite:
-        errors.append(f"Output dir {out_dir} is not empty. Use overwrite=True or choose a new out_dir.")
+    if out_dir.exists():
+        if not out_dir.is_dir():
+            errors.append(f"Output path {out_dir} exists and is not a directory. Choose a directory path for out_dir.")
+        elif any(out_dir.iterdir()) and not config.overwrite:
+            errors.append(f"Output dir {out_dir} is not empty. Use overwrite=True or choose a new out_dir.")
 
     if config.license_key is None and config.max_depth > 2:
         warnings.append("Free tier supports max_depth <= 2 unless a license key is provided.")
