@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import mimetypes
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
 from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
-from noteshift.markdown import indent_lines, md_escape, render_toggle, rich_text_plain, rich_text_to_markdown
+from noteshift.markdown import indent_lines, render_toggle, rich_text_plain, rich_text_to_markdown
 from noteshift.notion import NotionClient
 
 
@@ -202,7 +200,14 @@ def _render_blocks(
             out.append(indent + f"- {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                out.extend(indent_lines(_render_blocks(client, children, indent="", page_map=page_map), indent + "  "))
+                out.extend(
+                    indent_lines(
+                        _render_blocks(
+                            client, children, indent="", page_map=page_map
+                        ),
+                        indent + "  ",
+                    )
+                )
 
         elif btype == "numbered_list_item":
             text = rich_text_to_markdown(payload.get("rich_text"), page_map)
@@ -220,7 +225,14 @@ def _render_blocks(
             out.append(indent + f"- [{box}] {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                out.extend(indent_lines(_render_blocks(client, children, indent="", page_map=page_map), indent + "  "))
+                out.extend(
+                    indent_lines(
+                        _render_blocks(
+                            client, children, indent="", page_map=page_map
+                        ),
+                        indent + "  ",
+                    )
+                )
 
         elif btype == "toggle":
             summary = rich_text_to_markdown(payload.get("rich_text"), page_map)
