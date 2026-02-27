@@ -33,6 +33,15 @@ def export(
     overwrite: bool = typer.Option(
         False, "--overwrite", help="Allow overwriting output directory even if not empty."
     ),
+    max_depth: int = typer.Option(
+        2, "--max-depth", help="Maximum depth to export (free tier: 2, unlimited with license key)."
+    ),
+    license_key: str | None = typer.Option(
+        None,
+        "--license-key",
+        envvar="NOTESHIFT_LICENSE_KEY",
+        help="License key for unlimited depth and advanced features.",
+    ),
 ):
     """Export a Notion page tree to Markdown (MVP: structure + toggles/children preserved)."""
 
@@ -59,12 +68,20 @@ def export(
         typer.echo(f"Loading checkpoint from {checkpoint_path}")
 
     typer.echo(f"NoteShift exporting page tree {page_id} to {out}")
+
+    if license_key:
+        typer.echo("License activated: Unlimited depth enabled")
+    else:
+        typer.echo(f"Free tier: Maximum depth is {max_depth} levels. Use --license-key for unlimited.")
+    
     export_page_tree(
         token=token,
         root_page_id=page_id,
         out_dir=out,
         checkpoint=checkpoint,
         force=force,
+        license_key=license_key,
+        max_depth=max_depth,
     )
 
     checkpoint.save(checkpoint_path)

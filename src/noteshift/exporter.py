@@ -6,6 +6,7 @@ from pathlib import Path
 from noteshift.checkpoint import Checkpoint
 from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
+from noteshift.license import check_depth_limit, get_depth_warning, verify_license
 from noteshift.markdown import indent_lines, render_toggle, rich_text_plain, rich_text_to_markdown
 from noteshift.notion import NotionClient
 
@@ -52,6 +53,8 @@ def export_page_tree(
     out_dir: Path,
     checkpoint: Checkpoint | None = None,
     force: bool = False,
+    license_key: str | None = None,
+    max_depth: int = 2,
 ) -> ExportResult:
     """Export a page and its subpages.
 
@@ -69,9 +72,15 @@ def export_page_tree(
 
     result = ExportResult()
 
-    visited: set[str] = set()
+    # License verification
+    license_info = verify_license(license_key)
+    effective_max_depth = license_info["max_depth"] if license_key else max_depth
+    has_license = license_key is not None
 
-    def export_one(page_id: str, parent_dir: Path) -> None:
+    visited: set[str] = set()
+    depth_limited_ids: set[str] = set()
+
+    def export_one(page_id: str, parent_dir: Path, depth: int = 0) -> None:
         nonlocal result
         if page_id in visited:
             return
@@ -185,12 +194,19 @@ def export_page_tree(
         checkpoint.add_page(page_id)
         checkpoint.add_file(str(md_path.relative_to(out_dir)))
 
-        # recurse into child pages
+        # recurse into child pages (with depth limit check)
+        if not check_depth_limit(depth, effective_max_depth, has_license):
+            warning = get_depth_warning(depth, effective_max_depth)
+            if warning and page_id not in depth_limited_ids:
+                result.warnings.append(warning)
+                depth_limited_ids.add(page_id)
+            return
+
         for b in blocks:
             if b.get("type") == "child_page":
                 child_id = b.get("id")
                 if child_id:
-                    export_one(child_id, page_dir)
+                    export_one(child_id, page_dir, depth + 1)
 
     export_one(root_page_id, out_dir)
     return result

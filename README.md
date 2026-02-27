@@ -1,5 +1,9 @@
 # noteshift
 
+![PyPI](https://img.shields.io/pypi/v/noteshift)
+![Python](https://img.shields.io/pypi/pyversions/noteshift)
+![Tests](https://github.com/lukemaxwell/noteshift/actions/workflows/ci.yml/badge.svg)
+
 `Notion exporter for seamless Obsidian migration.`
 
 ## 🚀 What is noteshift?

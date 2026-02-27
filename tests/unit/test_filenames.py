@@ -1,7 +1,7 @@
 """Tests for filename generation."""
 
+
 from noteshift.filenames import FilenamePolicy, NameDeduper
-import pytest
 
 
 def test_filename_policy_slug() -> None:

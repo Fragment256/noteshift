@@ -1,11 +1,10 @@
 """Tests for markdown conversion utilities."""
 
-import pytest
 from noteshift.markdown import (
-    rich_text_to_markdown,
-    rich_text_plain,
     md_escape,
     render_toggle,
+    rich_text_plain,
+    rich_text_to_markdown,
 )
 
 # Mock data structures that mimic Notion API responses
@@ -46,7 +45,11 @@ NOTION_RICH_TEXT_USER_MENTION = [
 ]
 
 NOTION_RICH_TEXT_DATE_MENTION = [
-    {"type": "mention", "mention": {"type": "date", "date": {"start": "2023-10-27"}}, "plain_text": "2023-10-27"}
+    {
+        "type": "mention",
+        "mention": {"type": "date", "date": {"start": "2023-10-27"}},
+        "plain_text": "2023-10-27",
+    }
 ]
 
 
