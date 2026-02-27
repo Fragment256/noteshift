@@ -4,12 +4,10 @@ import os
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
 from noteshift.exporter import export_page_tree
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
-console = Console()
 
 
 @app.command()
@@ -45,16 +43,16 @@ def export(
         )
     out.mkdir(parents=True, exist_ok=True)
 
-    console.print(f"[bold]NoteShift[/bold] exporting page tree {page_id} to {out}")
+    typer.echo(f"NoteShift exporting page tree {page_id} to {out}")
     result = export_page_tree(token=token, root_page_id=page_id, out_dir=out)
 
-    console.print("\n[bold]Done[/bold]")
-    console.print(f"Pages exported: {result.pages_exported}")
-    console.print(f"Files written:  {result.files_written}")
+    typer.echo("\nDone")
+    typer.echo(f"Pages exported: {result.pages_exported}")
+    typer.echo(f"Files written:  {result.files_written}")
     if result.warnings:
-        console.print("\n[bold yellow]Warnings[/bold yellow]")
+        typer.echo("\nWarnings")
         for w in result.warnings:
-            console.print(f"- {w}")
+            typer.echo(f"- {w}")
 
 
 def main() -> None:
