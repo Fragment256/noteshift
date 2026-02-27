@@ -25,26 +25,62 @@ def _page_title(page: dict) -> str:
 
 
 def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportResult:
+    """Export a page and its subpages.
+
+    MVP scope for recursion:
+    - Follow `child_page` blocks.
+    - Create subfolders mirroring the page tree.
+
+    Not yet:
+    - Link rewriting across notes
+    - Attachments
+    - Databases
+    """
+
     client = NotionClient(token)
     policy = FilenamePolicy()
-    deduper = NameDeduper()
 
-    root = client.get_page(root_page_id)
-    title = _page_title(root)
-    stem = deduper.dedupe(policy.slug(title))
-    md_path = out_dir / f"{stem}.md"
+    pages_exported = 0
+    files_written = 0
+    warnings: list[str] = []
 
-    lines: list[str] = []
-    lines.append(f"# {title}")
-    lines.append("")
+    visited: set[str] = set()
 
-    blocks = client.list_block_children(root_page_id)
-    lines.extend(_render_blocks(client, blocks, indent=""))
+    def export_one(page_id: str, parent_dir: Path) -> None:
+        nonlocal pages_exported, files_written
+        if page_id in visited:
+            return
+        visited.add(page_id)
 
-    md_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+        page = client.get_page(page_id)
+        title = _page_title(page)
 
-    # MVP only exports the root page for now; recursion comes next milestone.
-    return ExportResult(pages_exported=1, files_written=1, warnings=[])
+        deduper = NameDeduper()
+        stem = deduper.dedupe(policy.slug(title))
+
+        page_dir = parent_dir / stem
+        page_dir.mkdir(parents=True, exist_ok=True)
+        md_path = page_dir / "index.md"
+
+        lines: list[str] = [f"# {title}", ""]
+        blocks = client.list_block_children(page_id)
+        lines.extend(_render_blocks(client, blocks, indent=""))
+        md_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+        pages_exported += 1
+        files_written += 1
+
+        # recurse into child pages
+        for b in blocks:
+            if b.get("type") == "child_page":
+                child_id = b.get("id")
+                if child_id:
+                    export_one(child_id, page_dir)
+
+    export_one(root_page_id, out_dir)
+    return ExportResult(
+        pages_exported=pages_exported, files_written=files_written, warnings=warnings
+    )
 
 
 def _render_blocks(client: NotionClient, blocks: list[dict], indent: str) -> list[str]:
