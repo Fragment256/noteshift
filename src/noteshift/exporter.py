@@ -5,7 +5,7 @@ from pathlib import Path
 
 from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
-from noteshift.markdown import indent_lines, render_toggle, rich_text_plain
+from noteshift.markdown import indent_lines, md_escape, render_toggle, rich_text_plain, rich_text_to_markdown
 from noteshift.notion import NotionClient
 
 
@@ -39,6 +39,7 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
 
     client = NotionClient(token)
     policy = FilenamePolicy()
+    page_map: dict[str, str] = {}  # Stores {page_id: relative_md_path}
 
     pages_exported = 0
     files_written = 0
@@ -61,6 +62,8 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
         page_dir = parent_dir / stem
         page_dir.mkdir(parents=True, exist_ok=True)
         md_path = page_dir / "index.md"
+        # Store the relative path for link mapping
+        page_map[page_id] = md_path.relative_to(out_dir).with_suffix("").as_posix()
 
         lines: list[str] = [f"# {title}", ""]
         blocks = client.list_block_children(page_id)
@@ -80,7 +83,11 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
                 )
                 warnings.extend(res.warnings)
                 files_written += res.files_written
-        lines.extend(_render_blocks(client, blocks, indent=""))
+        
+        # Use the updated rich_text_to_markdown renderer
+        rendered_blocks = _render_blocks(client, blocks, indent="", page_map=page_map)
+        lines.extend(rendered_blocks)
+
         md_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
         pages_exported += 1
@@ -99,7 +106,12 @@ def export_page_tree(*, token: str, root_page_id: str, out_dir: Path) -> ExportR
     )
 
 
-def _render_blocks(client: NotionClient, blocks: list[dict], indent: str) -> list[str]:
+def _render_blocks(
+    client: NotionClient,
+    blocks: list[dict],
+    indent: str,
+    page_map: dict[str, str],  # Pass page_map to render_blocks
+) -> list[str]:
     out: list[str] = []
 
     for b in blocks:
@@ -107,48 +119,50 @@ def _render_blocks(client: NotionClient, blocks: list[dict], indent: str) -> lis
         payload = b.get(btype, {}) if btype else {}
 
         if btype == "paragraph":
-            text = rich_text_plain(payload.get("rich_text"))
+            # Use rich_text_to_markdown for paragraphs
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
             if text:
                 out.append(indent + text)
                 out.append("")
 
         elif btype in {"heading_1", "heading_2", "heading_3"}:
             level = {"heading_1": "#", "heading_2": "##", "heading_3": "###"}[btype]
-            text = rich_text_plain(payload.get("rich_text"))
+            # Use rich_text_to_markdown for headings
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
             out.append(indent + f"{level} {text}")
             out.append("")
 
         elif btype == "bulleted_list_item":
-            text = rich_text_plain(payload.get("rich_text"))
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
             out.append(indent + f"- {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                out.extend(indent_lines(_render_blocks(client, children, indent=""), indent + "  "))
+                out.extend(indent_lines(_render_blocks(client, children, indent="", page_map=page_map), indent + "  "))
 
         elif btype == "numbered_list_item":
-            text = rich_text_plain(payload.get("rich_text"))
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
             out.append(indent + f"1. {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
                 out.extend(indent_lines(
-                    _render_blocks(client, children, indent=""), indent + "   "
+                    _render_blocks(client, children, indent="", page_map=page_map), indent + "   "
                 ))
 
         elif btype == "to_do":
-            text = rich_text_plain(payload.get("rich_text"))
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
             checked = payload.get("checked")
             box = "x" if checked else " "
             out.append(indent + f"- [{box}] {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                out.extend(indent_lines(_render_blocks(client, children, indent=""), indent + "  "))
+                out.extend(indent_lines(_render_blocks(client, children, indent="", page_map=page_map), indent + "  "))
 
         elif btype == "toggle":
-            summary = rich_text_plain(payload.get("rich_text"))
+            summary = rich_text_to_markdown(payload.get("rich_text"), page_map)
             body: list[str] = []
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                body = _render_blocks(client, children, indent="")
+                body = _render_blocks(client, children, indent="", page_map=page_map)
             out.extend(indent_lines(render_toggle(summary, body), indent))
             out.append("")
 
@@ -157,6 +171,6 @@ def _render_blocks(client: NotionClient, blocks: list[dict], indent: str) -> lis
             # This is critical to avoid silent drops in nested structures.
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                out.extend(_render_blocks(client, children, indent=indent))
+                out.extend(_render_blocks(client, children, indent=indent, page_map=page_map))
 
     return out
