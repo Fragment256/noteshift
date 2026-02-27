@@ -3,6 +3,7 @@
 
 import os
 import sys
+
 import httpx
 
 NOTION_VERSION = "2025-09-03"
@@ -193,7 +194,7 @@ def main():
     except httpx.HTTPStatusError as e:
         print(f"  Skipped database (requires integration capabilities): {e}")
 
-    print(f"\nTest data ready!")
+    print("\nTest data ready!")
     print(f"Export: noteshift export --page-id {root_id}")
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from noteshift.checkpoint import Checkpoint, is_database_exported, is_page_exported
+from noteshift.checkpoint import Checkpoint
 from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
 from noteshift.markdown import indent_lines, render_toggle, rich_text_plain, rich_text_to_markdown
@@ -18,10 +18,6 @@ class ExportResult:
     databases_exported: int = 0
     rows_exported: int = 0
     attachments_downloaded: int = 0
-    # Tracking for checkpoint
-    _exported_page_ids: list[str] = field(default_factory=list, repr=False)
-    _exported_database_ids: list[str] = field(default_factory=list, repr=False)
-    _files_written: list[str] = field(default_factory=list, repr=False)
 
 
 def _page_title(page: dict) -> str:
@@ -82,7 +78,7 @@ def export_page_tree(
         visited.add(page_id)
 
         # Skip if already exported (unless force mode)
-        if not force and is_page_exported(page_id, checkpoint):
+        if not force and checkpoint.is_page_exported(page_id):
             return
 
         page = client.get_page(page_id)
@@ -117,7 +113,7 @@ def export_page_tree(
                     continue
 
                 # Skip if already exported (unless force mode)
-                if not force and is_database_exported(ds_id, checkpoint):
+                if not force and checkpoint.is_database_exported(ds_id):
                     continue
 
                 title_db = (b.get("child_database") or {}).get("title") or "Database"
@@ -132,6 +128,12 @@ def export_page_tree(
                 result.databases_exported += res.data_sources_exported
                 result.rows_exported += res.rows_exported
                 result.attachments_downloaded += res.attachments_downloaded
+
+                # Update checkpoint
+                checkpoint.add_database(ds_id)
+                checkpoint.add_rows(res.rows_exported)
+                for w in res.warnings:
+                    checkpoint.add_warning(w)
                 result._exported_database_ids.append(ds_id)
 
             elif btype in {"image", "file"}:
@@ -178,10 +180,10 @@ def export_page_tree(
 
         result.pages_exported += 1
         result.files_written += 1  # Count the markdown file itself
-        result._exported_page_ids.append(page_id)
 
-        # Track file paths for checkpoint
-        result._files_written.append(str(md_path.relative_to(out_dir)))
+        # Update checkpoint
+        checkpoint.add_page(page_id)
+        checkpoint.add_file(str(md_path.relative_to(out_dir)))
 
         # recurse into child pages
         for b in blocks:
