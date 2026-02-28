@@ -102,9 +102,6 @@ def preflight(plan: ExportPlan, config: NoteshiftConfig) -> PreflightReport:
         elif any(out_dir.iterdir()) and not config.overwrite:
             errors.append(f"Output dir {out_dir} is not empty. Use overwrite=True or choose a new out_dir.")
 
-    if config.license_key is None and config.max_depth > 2:
-        warnings.append("Free tier supports max_depth <= 2 unless a license key is provided.")
-
     return PreflightReport(ok=not errors, errors=errors, warnings=warnings)
 
 
@@ -142,7 +139,6 @@ def run_export(
                 out_dir=out_dir,
                 checkpoint=checkpoint,
                 force=config.force,
-                license_key=config.license_key,
                 max_depth=config.max_depth,
             )
             _emit(progress, ProgressEvent(type="item_done", id=page_id, title="page"))

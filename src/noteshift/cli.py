@@ -32,14 +32,11 @@ def export(
         False, "--overwrite", help="Allow overwriting output directory even if not empty."
     ),
     max_depth: int = typer.Option(
-        2, "--max-depth", help="Maximum depth to export (free tier: 2, unlimited with license key)."
+        2,
+        "--max-depth",
+        help="Maximum recursion depth to export. Set higher values for deeper trees.",
     ),
-    license_key: str | None = typer.Option(
-        None,
-        "--license-key",
-        envvar="NOTESHIFT_LICENSE_KEY",
-        help="License key for unlimited depth and advanced features.",
-    ),
+
 ):
     """Export a Notion page tree to Markdown (MVP: structure + toggles/children preserved)."""
 
@@ -52,7 +49,6 @@ def export(
         overwrite=overwrite,
         force=force,
         max_depth=max_depth,
-        license_key=license_key,
     )
     plan = ExportPlan(page_ids=[page_id], database_ids=[])
 
@@ -67,10 +63,7 @@ def export(
 
     typer.echo(f"NoteShift exporting page tree {page_id} to {out}")
 
-    if license_key:
-        typer.echo("License activated: Unlimited depth enabled")
-    else:
-        typer.echo(f"Free tier: Maximum depth is {max_depth} levels. Use --license-key for unlimited.")
+    typer.echo(f"Maximum depth set to {max_depth} levels.")
 
     result = run_export(plan=plan, config=config)
 

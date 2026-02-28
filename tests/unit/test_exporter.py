@@ -143,8 +143,8 @@ class TestExportPageTree:
         assert result.pages_exported == 3
         assert any("Depth limit" in w for w in result.warnings)
 
-    def test_depth_limit_paid_tier(self, tmp_path: Path, mock_notion_client, minimal_checkpoint) -> None:
-        """Paid tier with license key exports unlimited depth."""
+    def test_depth_limit_high_max_depth(self, tmp_path: Path, mock_notion_client, minimal_checkpoint) -> None:
+        """High max_depth exports deeper trees."""
         pages = {}
         page_counter = [0]
         
@@ -180,10 +180,10 @@ class TestExportPageTree:
             root_page_id="root",
             out_dir=out_dir,
             checkpoint=minimal_checkpoint,
-            license_key="DEMO",  # Paid tier
+            max_depth=10,
         )
-        
-        # Should export all 5 pages (unlimited depth)
+
+        # Should export all 5 pages with sufficiently high depth
         assert result.pages_exported == 5
         assert not any("Depth limit" in w for w in result.warnings)
 
