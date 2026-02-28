@@ -80,11 +80,10 @@ def preflight(plan: ExportPlan, config: NoteshiftConfig) -> PreflightReport:
     errors: list[str] = []
     warnings: list[str] = []
 
-    token = config.notion_token or os.getenv("NOTESHIFT_NOTION_TOKEN") or os.getenv("NOTION_TOKEN")
+    token = config.notion_token or os.getenv("NOTION_TOKEN")
     if not token:
         errors.append(
-            "Missing Notion token. Provide config.notion_token or set "
-            "NOTESHIFT_NOTION_TOKEN / NOTION_TOKEN."
+            "Missing Notion token. Provide config.notion_token or set NOTION_TOKEN."
         )
 
     if not plan.page_ids and not plan.database_ids:
@@ -118,7 +117,7 @@ def run_export(
     if not report.ok:
         raise ValueError("; ".join(report.errors))
 
-    token = config.notion_token or os.getenv("NOTESHIFT_NOTION_TOKEN") or os.getenv("NOTION_TOKEN")
+    token = config.notion_token or os.getenv("NOTION_TOKEN")
     if token is None:
         raise ValueError("Missing Notion token.")
 

@@ -22,8 +22,8 @@ def export(
     notion_token: str | None = typer.Option(
         None,
         "--notion-token",
-        envvar="NOTESHIFT_NOTION_TOKEN",
-        help="Notion integration token. Also reads NOTESHIFT_NOTION_TOKEN env var.",
+        envvar="NOTION_TOKEN",
+        help="Notion integration token. Also reads NOTION_TOKEN env var.",
     ),
     force: bool = typer.Option(
         False, "--force", help="Force re-export of all items, ignoring checkpoint."
