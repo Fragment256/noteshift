@@ -11,7 +11,6 @@ class NoteshiftConfig:
     overwrite: bool = False
     force: bool = False
     max_depth: int = 2
-    license_key: str | None = None
     fail_fast: bool = False
 
 
