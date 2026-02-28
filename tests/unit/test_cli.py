@@ -37,7 +37,6 @@ class TestCLIHelp:
         assert "--page-id" in output
         assert "--out" in output
         assert "--max-depth" in output
-        assert "--license-key" in output
         assert "--force" in output
         assert "--overwrite" in output
 
@@ -86,7 +85,6 @@ class TestExportIntegration:
             "--page-id", "test-page",
             "--out", "/tmp/test-out",
             "--max-depth", "3",
-            "--license-key", "DEMO",
             "--force",
             "--overwrite"
         ])

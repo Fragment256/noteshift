@@ -36,12 +36,7 @@ def export(
         "--max-depth",
         help="Maximum recursion depth to export. Set higher values for deeper trees.",
     ),
-    license_key: str | None = typer.Option(
-        None,
-        "--license-key",
-        envvar="NOTESHIFT_LICENSE_KEY",
-        help="Deprecated: ignored by CLI. Licensing is handled by GUI layer.",
-    ),
+
 ):
     """Export a Notion page tree to Markdown (MVP: structure + toggles/children preserved)."""
 
@@ -67,9 +62,6 @@ def export(
         typer.echo(f"Loading checkpoint from {out / '.checkpoint.json'}")
 
     typer.echo(f"NoteShift exporting page tree {page_id} to {out}")
-
-    if license_key:
-        typer.echo("Warning: --license-key is deprecated and ignored by CLI.")
 
     typer.echo(f"Maximum depth set to {max_depth} levels.")
 
