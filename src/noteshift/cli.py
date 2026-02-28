@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import json
 import os
-from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
 
-from noteshift.checkpoint import Checkpoint
-from noteshift.exporter import export_page_tree
+from noteshift.api import preflight, run_export
+from noteshift.types import ExportPlan, NoteshiftConfig
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -24,8 +22,8 @@ def export(
     notion_token: str | None = typer.Option(
         None,
         "--notion-token",
-        envvar="NOTESHIFT_NOTION_TOKEN",
-        help="Notion integration token. Also reads NOTESHIFT_NOTION_TOKEN env var.",
+        envvar="NOTION_TOKEN",
+        help="Notion integration token. Also reads NOTION_TOKEN env var.",
     ),
     force: bool = typer.Option(
         False, "--force", help="Force re-export of all items, ignoring checkpoint."
@@ -45,27 +43,27 @@ def export(
 ):
     """Export a Notion page tree to Markdown (MVP: structure + toggles/children preserved)."""
 
-    token = notion_token or os.getenv("NOTION_TOKEN")
-    if not token:
-        raise typer.BadParameter(
-            "Missing Notion token. Provide with --notion-token or set NOTESHIFT_NOTION_TOKEN."
-        )
-
+    token = notion_token or os.getenv("NOTION_TOKEN") or ""
     out = out.resolve()
-    if out.exists() and any(out.iterdir()) and not overwrite:
-        raise typer.BadParameter(
-            f"Output dir {out} is not empty. Use --overwrite or pick a new --out."
-        )
-    out.mkdir(parents=True, exist_ok=True)
 
-    checkpoint_path = out / ".checkpoint.json"
-    checkpoint = Checkpoint.load(checkpoint_path)
+    config = NoteshiftConfig(
+        notion_token=token,
+        out_dir=out,
+        overwrite=overwrite,
+        force=force,
+        max_depth=max_depth,
+        license_key=license_key,
+    )
+    plan = ExportPlan(page_ids=[page_id], database_ids=[])
+
+    report = preflight(plan, config)
+    if not report.ok:
+        raise typer.BadParameter("; ".join(report.errors))
 
     if force:
-        checkpoint = Checkpoint()
         typer.echo("Force mode enabled. Discarding previous checkpoint.")
     else:
-        typer.echo(f"Loading checkpoint from {checkpoint_path}")
+        typer.echo(f"Loading checkpoint from {out / '.checkpoint.json'}")
 
     typer.echo(f"NoteShift exporting page tree {page_id} to {out}")
 
@@ -73,82 +71,30 @@ def export(
         typer.echo("License activated: Unlimited depth enabled")
     else:
         typer.echo(f"Free tier: Maximum depth is {max_depth} levels. Use --license-key for unlimited.")
-    
-    export_page_tree(
-        token=token,
-        root_page_id=page_id,
-        out_dir=out,
-        checkpoint=checkpoint,
-        force=force,
-        license_key=license_key,
-        max_depth=max_depth,
-    )
 
-    checkpoint.save(checkpoint_path)
+    result = run_export(plan=plan, config=config)
 
     typer.echo("\nMigration Report")
     typer.echo("----------------")
-    typer.echo(f"Pages exported: {len(checkpoint.page_ids)}")
-    typer.echo(f"Databases exported: {len(checkpoint.database_ids)}")
-    typer.echo(f"Rows exported: {checkpoint.rows_exported}")
-    typer.echo(f"Attachments downloaded: {checkpoint.attachments_downloaded}")
-    typer.echo(f"Files written: {len(checkpoint.files_written)}")
-    if checkpoint.warnings:
+    typer.echo(f"Pages exported: {result.pages_exported}")
+    typer.echo(f"Databases exported: {result.databases_exported}")
+    typer.echo(f"Rows exported: {result.rows_exported}")
+    typer.echo(f"Attachments downloaded: {result.attachments_downloaded}")
+
+    if result.warnings:
         typer.echo("\nWarnings")
-        for w in checkpoint.warnings:
-            typer.echo(f"- {w}")
+        for warning in result.warnings:
+            typer.echo(f"- {warning}")
 
-    # --- Migration Report Generation ---
-    report_data = {
-        "timestamp": datetime.now(UTC).isoformat(),
-        "pages_exported_total": len(checkpoint.page_ids),
-        "databases_exported_total": len(checkpoint.database_ids),
-        "rows_exported_total": checkpoint.rows_exported,
-        "attachments_downloaded_total": checkpoint.attachments_downloaded,
-        "files_written_total": len(checkpoint.files_written),
-        "warnings": checkpoint.warnings,
-    }
+    typer.echo(f"\nJSON report saved to {result.report_path}")
+    typer.echo(f"Checkpoint saved to {result.checkpoint_path}")
 
-    # JSON Report
-    json_report_path = out / "migration_report.json"
-    try:
-        with open(json_report_path, "w", encoding="utf-8") as f:
-            json.dump(report_data, f, indent=2)
-        typer.echo(f"\nJSON report saved to {json_report_path}")
-    except Exception as e:
-        typer.echo(f"Error saving JSON report: {e}", err=True)
-
-    # Markdown Report
-    md_report_path = out / "migration_report.md"
-    md_lines = [
-        "# Migration Report",
-        "",
-        "## Summary",
-        "",
-        "| Metric | Value |",
-        "| :----- | :---- |",
-        f"| Timestamp | {report_data['timestamp']} |",
-        f"| Pages Exported | {report_data['pages_exported_total']} |",
-        f"| Databases Exported | {report_data['databases_exported_total']} |",
-        f"| Rows Exported | {report_data['rows_exported_total']} |",
-        f"| Attachments Downloaded | {report_data['attachments_downloaded_total']} |",
-        f"| Files Written | {report_data['files_written_total']} |",
-        "",
-        "## Warnings",
-        "",
-    ]
-    if report_data["warnings"]:
-        for warning in report_data["warnings"]:
-            md_lines.append(f"- {warning}")
-    else:
-        md_lines.append("No warnings.")
-
-    try:
-        with open(md_report_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(md_lines) + "\n")
-        typer.echo(f"Markdown report saved to {md_report_path}")
-    except Exception as e:
-        typer.echo(f"Error saving Markdown report: {e}", err=True)
+    if result.errors:
+        typer.echo("\nErrors")
+        for error in result.errors:
+            typer.echo(f"- {error}", err=True)
+        typer.echo("\nExport failed with errors.", err=True)
+        raise typer.Exit(code=1)
 
     typer.echo("\nExport complete.")
 

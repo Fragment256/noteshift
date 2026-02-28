@@ -10,9 +10,9 @@ NOTION_VERSION = "2025-09-03"
 
 
 def main():
-    token = os.getenv("NOTESHIFT_NOTION_TOKEN") or os.getenv("NOTION_TOKEN")
+    token = os.getenv("NOTION_TOKEN")
     if not token:
-        print("Error: Set NOTESHIFT_NOTION_TOKEN or NOTION_TOKEN env var")
+        print("Error: Set NOTION_TOKEN env var")
         sys.exit(1)
 
     headers = {

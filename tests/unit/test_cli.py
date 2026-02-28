@@ -56,7 +56,7 @@ class TestExportValidation:
 
         assert result.exit_code != 0
 
-    @patch.dict("os.environ", {"NOTESHIFT_NOTION_TOKEN": "test-token"}, clear=True)
+    @patch.dict("os.environ", {"NOTION_TOKEN": "test-token"}, clear=True)
     def test_export_existing_output_without_overwrite(self, tmp_path: Path) -> None:
         """Export fails if output exists and --overwrite not set."""
         out_dir = tmp_path / "existing"
@@ -76,7 +76,7 @@ class TestExportValidation:
 class TestExportIntegration:
     """Integration tests that mock export_page_tree."""
 
-    @patch.dict("os.environ", {"NOTESHIFT_NOTION_TOKEN": "test-token"}, clear=True)
+    @patch.dict("os.environ", {"NOTION_TOKEN": "test-token"}, clear=True)
     def test_export_basic_args(self) -> None:
         """Basic export command accepts all flags."""
         # We can't easily test successful execution without mocking internals

@@ -35,6 +35,9 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["B008"]
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11.0"]
 build-backend = "uv_build"
