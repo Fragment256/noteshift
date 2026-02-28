@@ -144,7 +144,7 @@ class TestExportPageTree:
         assert any("Depth limit" in w for w in result.warnings)
 
     def test_depth_limit_high_max_depth(self, tmp_path: Path, mock_notion_client, minimal_checkpoint) -> None:
-        """High max_depth exports deeper trees without license checks."""
+        """High max_depth exports deeper trees."""
         pages = {}
         page_counter = [0]
         
