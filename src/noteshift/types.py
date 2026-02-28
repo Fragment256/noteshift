@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-@dataclass(frozen=True)
+@dataclass
 class NoteshiftConfig:
     notion_token: str
     out_dir: Path
@@ -12,22 +12,23 @@ class NoteshiftConfig:
     force: bool = False
     max_depth: int = 2
     license_key: str | None = None
+    fail_fast: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass
 class ExportPlan:
     page_ids: list[str] = field(default_factory=list)
     database_ids: list[str] = field(default_factory=list)
 
 
-@dataclass(frozen=True)
+@dataclass
 class PreflightReport:
     ok: bool
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
-@dataclass(frozen=True)
+@dataclass
 class ExportResult:
     out_dir: Path
     report_path: Path

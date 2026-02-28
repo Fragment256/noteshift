@@ -18,7 +18,8 @@ def _emit(progress: ProgressSink | None, event: ProgressEvent) -> None:
         progress(event)
 
 
-def _write_migration_report(out_dir: Path, checkpoint: Checkpoint) -> Path:
+def _write_migration_report(out_dir: Path, checkpoint: Checkpoint) -> tuple[Path, list[str]]:
+    report_errors: list[str] = []
     report_data = {
         "timestamp": datetime.now(UTC).isoformat(),
         "pages_exported_total": len(checkpoint.page_ids),
@@ -30,37 +31,40 @@ def _write_migration_report(out_dir: Path, checkpoint: Checkpoint) -> Path:
     }
 
     json_report_path = out_dir / "migration_report.json"
-    with open(json_report_path, "w", encoding="utf-8") as f:
-        json.dump(report_data, f, indent=2)
+    try:
+        with open(json_report_path, "w", encoding="utf-8") as f:
+            json.dump(report_data, f, indent=2)
 
-    md_report_path = out_dir / "migration_report.md"
-    md_lines = [
-        "# Migration Report",
-        "",
-        "## Summary",
-        "",
-        "| Metric | Value |",
-        "| :----- | :---- |",
-        f"| Timestamp | {report_data['timestamp']} |",
-        f"| Pages Exported | {report_data['pages_exported_total']} |",
-        f"| Databases Exported | {report_data['databases_exported_total']} |",
-        f"| Rows Exported | {report_data['rows_exported_total']} |",
-        f"| Attachments Downloaded | {report_data['attachments_downloaded_total']} |",
-        f"| Files Written | {report_data['files_written_total']} |",
-        "",
-        "## Warnings",
-        "",
-    ]
-    if report_data["warnings"]:
-        for warning in report_data["warnings"]:
-            md_lines.append(f"- {warning}")
-    else:
-        md_lines.append("No warnings.")
+        md_report_path = out_dir / "migration_report.md"
+        md_lines = [
+            "# Migration Report",
+            "",
+            "## Summary",
+            "",
+            "| Metric | Value |",
+            "| :----- | :---- |",
+            f"| Timestamp | {report_data['timestamp']} |",
+            f"| Pages Exported | {report_data['pages_exported_total']} |",
+            f"| Databases Exported | {report_data['databases_exported_total']} |",
+            f"| Rows Exported | {report_data['rows_exported_total']} |",
+            f"| Attachments Downloaded | {report_data['attachments_downloaded_total']} |",
+            f"| Files Written | {report_data['files_written_total']} |",
+            "",
+            "## Warnings",
+            "",
+        ]
+        if report_data["warnings"]:
+            for warning in report_data["warnings"]:
+                md_lines.append(f"- {warning}")
+        else:
+            md_lines.append("No warnings.")
 
-    with open(md_report_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(md_lines) + "\n")
+        with open(md_report_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(md_lines) + "\n")
+    except OSError as exc:
+        report_errors.append(f"Failed to write migration report files: {exc}")
 
-    return json_report_path
+    return json_report_path, report_errors
 
 
 def _database_title(schema: dict) -> str:
@@ -78,7 +82,10 @@ def preflight(plan: ExportPlan, config: NoteshiftConfig) -> PreflightReport:
 
     token = config.notion_token or os.getenv("NOTESHIFT_NOTION_TOKEN") or os.getenv("NOTION_TOKEN")
     if not token:
-        errors.append("Missing Notion token. Provide config.notion_token or set NOTESHIFT_NOTION_TOKEN.")
+        errors.append(
+            "Missing Notion token. Provide config.notion_token or set "
+            "NOTESHIFT_NOTION_TOKEN / NOTION_TOKEN."
+        )
 
     if not plan.page_ids and not plan.database_ids:
         errors.append("Export plan is empty. Provide at least one page_id or database_id.")
@@ -144,6 +151,8 @@ def run_export(
             msg = f"Failed to export page {page_id}: {exc}"
             all_errors.append(msg)
             _emit(progress, ProgressEvent(type="error", id=page_id, title="page", message=msg))
+            if config.fail_fast:
+                raise RuntimeError(msg) from exc
 
     if plan.database_ids:
         client = NotionClient(token)
@@ -171,11 +180,13 @@ def run_export(
                 msg = f"Failed to export database {database_id}: {exc}"
                 all_errors.append(msg)
                 _emit(progress, ProgressEvent(type="error", id=database_id, title="database", message=msg))
+                if config.fail_fast:
+                    raise RuntimeError(msg) from exc
 
     checkpoint.save(checkpoint_path)
     _emit(progress, ProgressEvent(type="checkpoint", message=str(checkpoint_path)))
 
-    report_path = _write_migration_report(out_dir, checkpoint)
+    report_path, report_errors = _write_migration_report(out_dir, checkpoint)
 
     summary = ExportResult(
         out_dir=out_dir,
@@ -186,7 +197,7 @@ def run_export(
         rows_exported=checkpoint.rows_exported,
         attachments_downloaded=checkpoint.attachments_downloaded,
         warnings=list(checkpoint.warnings),
-        errors=all_errors,
+        errors=all_errors + report_errors,
     )
 
     _emit(
