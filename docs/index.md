@@ -1,4 +1,4 @@
-# noteshift docs
+# NoteShift docs
 
 - [Getting started](getting-started.md)
 - [CLI reference](cli.md)

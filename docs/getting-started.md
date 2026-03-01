@@ -10,7 +10,7 @@ Set it in your environment:
 export NOTION_TOKEN="secret_xxx"
 ```
 
-## 2) Install noteshift
+## 2) Install NoteShift
 
 ### Using uv (recommended)
 
