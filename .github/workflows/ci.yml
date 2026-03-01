@@ -13,6 +13,9 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
 
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +40,17 @@ jobs:
         run: uv run mypy src
 
       - name: Unit and integration tests
-        run: uv run pytest --cov=noteshift --cov-report=term --cov-fail-under=65 tests/
+        run: uv run pytest --cov=noteshift --cov-report=term --cov-report=xml --cov-fail-under=65 tests/
+
+      - name: Upload coverage to Codecov (non-blocking)
+        if: matrix.python-version == '3.11'
+        continue-on-error: true
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          token: ${{ env.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          verbose: true
 
       - name: Contract tests (vcr replay)
         run: uv run pytest -m contract
