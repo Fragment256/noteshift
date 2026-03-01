@@ -27,7 +27,9 @@ def test_run_export_validation_errors(tmp_path: Path) -> None:
         run_export(plan, config)
 
 
-def test_run_export_emits_progress_events(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_run_export_emits_progress_events(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     events: list[str] = []
 
     def fake_export_page_tree(**_kwargs):

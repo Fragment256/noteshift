@@ -1,6 +1,5 @@
 """Tests for filename generation."""
 
-
 from noteshift.filenames import FilenamePolicy, NameDeduper
 
 
@@ -21,9 +20,9 @@ def test_filename_policy_windows_safe() -> None:
     """Test Windows-specific filename sanitization."""
     policy = FilenamePolicy()
     # Test invalid characters are replaced/removed
-    test_str_with_invalid = "File<>:\"/\\|?*\\x00\\x1fchars."
+    test_str_with_invalid = 'File<>:"/\\|?*\\x00\\x1fchars.'
     sanitized = policy.slug(test_str_with_invalid)
-    
+
     # Check that invalid characters are not present
     assert "<" not in sanitized
     assert ">" not in sanitized

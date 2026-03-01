@@ -13,8 +13,8 @@ runner = CliRunner()
 
 def _strip_ansi(text: str) -> str:
     """Remove ANSI escape sequences from text."""
-    ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
-    return ansi_escape.sub('', text)
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
+    return ansi_escape.sub("", text)
 
 
 class TestCLIHelp:
@@ -47,10 +47,7 @@ class TestExportValidation:
     @patch.dict("os.environ", {}, clear=True)
     def test_export_missing_token(self) -> None:
         """Export fails without token."""
-        result = runner.invoke(app, [
-            "export",
-            "--page-id", "test-page"
-        ])
+        result = runner.invoke(app, ["export", "--page-id", "test-page"])
         _ = _strip_ansi(result.output)  # noqa: F841
 
         assert result.exit_code != 0
@@ -62,11 +59,9 @@ class TestExportValidation:
         out_dir.mkdir()
         (out_dir / "file.txt").write_text("existing content")
 
-        result = runner.invoke(app, [
-            "export",
-            "--page-id", "test-page",
-            "--out", str(out_dir)
-        ])
+        result = runner.invoke(
+            app, ["export", "--page-id", "test-page", "--out", str(out_dir)]
+        )
         _ = _strip_ansi(result.output)  # noqa: F841
 
         assert result.exit_code != 0
@@ -80,14 +75,20 @@ class TestExportIntegration:
         """Basic export command accepts all flags."""
         # We can't easily test successful execution without mocking internals
         # This test verifies the command structure is valid
-        result = runner.invoke(app, [
-            "export",
-            "--page-id", "test-page",
-            "--out", "/tmp/test-out",
-            "--max-depth", "3",
-            "--force",
-            "--overwrite"
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "export",
+                "--page-id",
+                "test-page",
+                "--out",
+                "/tmp/test-out",
+                "--max-depth",
+                "3",
+                "--force",
+                "--overwrite",
+            ],
+        )
         _ = _strip_ansi(result.output)  # noqa: F841
 
         # Validates CLI parses all args without raising usage error

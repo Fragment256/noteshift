@@ -1,0 +1,30 @@
+interactions:
+- request:
+    method: GET
+    uri: https://api.notion.com/v1/pages/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+    body: null
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - DUMMY
+      connection:
+      - keep-alive
+      content-type:
+      - application/json
+      notion-version:
+      - '2025-09-03'
+      user-agent:
+      - python-httpx/0.28.1
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      content-type:
+      - application/json
+    body:
+      string: '{"object":"page","id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","properties":{}}'
+version: 1

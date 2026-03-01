@@ -26,7 +26,11 @@ NOTION_RICH_TEXT_ITALIC = [
 ]
 
 NOTION_RICH_TEXT_CODE = [
-    {"type": "text", "annotations": {"code": True}, "text": {"content": "print('hello')"}},
+    {
+        "type": "text",
+        "annotations": {"code": True},
+        "text": {"content": "print('hello')"},
+    },
 ]
 
 NOTION_RICH_TEXT_LINK = [
@@ -41,7 +45,11 @@ NOTION_RICH_TEXT_LINK = [
 ]
 
 NOTION_RICH_TEXT_USER_MENTION = [
-    {"type": "mention", "mention": {"type": "user", "user": {"id": "user-456"}}, "plain_text": "John Doe"}
+    {
+        "type": "mention",
+        "mention": {"type": "user", "user": {"id": "user-456"}},
+        "plain_text": "John Doe",
+    }
 ]
 
 NOTION_RICH_TEXT_DATE_MENTION = [
@@ -106,13 +114,15 @@ def test_rich_text_to_markdown_date_mention():
 
 def test_rich_text_to_markdown_url_pipe_escape():
     """Test escaping pipe characters in link text."""
-    rt_with_pipe = [{
-        "type": "text",
-        "text": {
-            "content": "Link | With | Pipe",
-            "link": {"url": "https://example.com"}
+    rt_with_pipe = [
+        {
+            "type": "text",
+            "text": {
+                "content": "Link | With | Pipe",
+                "link": {"url": "https://example.com"},
+            },
         }
-    }]
+    ]
     expected = "[Link \\| With \\| Pipe](https://example.com)"
     assert rich_text_to_markdown(rt_with_pipe) == expected
 
@@ -134,7 +144,6 @@ def test_render_toggle():
         "Line 1",
         "Line 2",
         "",
-        "</details>"
+        "</details>",
     ]
     assert render_toggle(summary, body_lines) == expected
-

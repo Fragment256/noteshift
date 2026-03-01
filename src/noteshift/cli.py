@@ -14,7 +14,9 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 @app.command()
 def export(
     page_id: str = typer.Option(
-        ..., "--page-id", help="Root Notion page ID to export (UUID with or without dashes)."
+        ...,
+        "--page-id",
+        help="Root Notion page ID to export (UUID with or without dashes).",
     ),
     out: Path = typer.Option(
         Path("./out"), "--out", help="Output directory (will be created)."
@@ -29,16 +31,17 @@ def export(
         False, "--force", help="Force re-export of all items, ignoring checkpoint."
     ),
     overwrite: bool = typer.Option(
-        False, "--overwrite", help="Allow overwriting output directory even if not empty."
+        False,
+        "--overwrite",
+        help="Allow overwriting output directory even if not empty.",
     ),
     max_depth: int = typer.Option(
         2,
         "--max-depth",
         help="Maximum recursion depth to export. Set higher values for deeper trees.",
     ),
-
 ):
-    """Export a Notion page tree to Markdown (MVP: structure + toggles/children preserved)."""
+    """Export a Notion page tree to Markdown."""
 
     token = notion_token or os.getenv("NOTION_TOKEN") or ""
     out = out.resolve()

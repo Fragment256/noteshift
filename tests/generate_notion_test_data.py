@@ -125,7 +125,10 @@ def main():
                     "type": "paragraph",
                     "paragraph": {
                         "rich_text": [
-                            {"type": "text", "text": {"content": f"Content for child {i}"}}
+                            {
+                                "type": "text",
+                                "text": {"content": f"Content for child {i}"},
+                            }
                         ]
                     },
                 },
