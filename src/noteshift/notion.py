@@ -31,7 +31,7 @@ class NotionClient:
         cursor: str | None = None
         with httpx.Client(timeout=30.0, headers=self._headers()) as client:
             while True:
-                params: dict[str, object] = {"page_size": 100}
+                params: dict[str, str | int] = {"page_size": 100}
                 if cursor:
                     params["start_cursor"] = cursor
                 url = f"https://api.notion.com/v1/blocks/{block_id}/children"

@@ -22,7 +22,7 @@ def _write_migration_report(
     out_dir: Path, checkpoint: Checkpoint
 ) -> tuple[Path, list[str]]:
     report_errors: list[str] = []
-    report_data = {
+    report_data: dict[str, object] = {
         "timestamp": datetime.now(UTC).isoformat(),
         "pages_exported_total": len(checkpoint.page_ids),
         "databases_exported_total": len(checkpoint.database_ids),
@@ -58,8 +58,9 @@ def _write_migration_report(
             "## Warnings",
             "",
         ]
-        if report_data["warnings"]:
-            for warning in report_data["warnings"]:
+        warnings = report_data["warnings"]
+        if isinstance(warnings, list) and warnings:
+            for warning in warnings:
                 md_lines.append(f"- {warning}")
         else:
             md_lines.append("No warnings.")

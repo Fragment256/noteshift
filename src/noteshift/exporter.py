@@ -42,13 +42,13 @@ def _get_attachment_info(block: dict) -> tuple[str | None, str | None, str | Non
     if btype == "image":
         url = payload.get("file", {}).get("url")
         caption = rich_text_to_markdown(
-            payload.get("caption"), page_map={}
+            payload.get("caption"), page_mapper=None
         )  # No internal links in captions
         return url, caption, "image"
     elif btype == "file":
         url = payload.get("file", {}).get("url")
         caption = rich_text_to_markdown(
-            payload.get("caption"), page_map={}
+            payload.get("caption"), page_mapper=None
         )  # No internal links in captions
         return url, caption, "file"
     return None, None, None
@@ -78,6 +78,7 @@ def export_page_tree(
     page_map: dict[str, str] = {}
 
     result = ExportResult()
+    active_checkpoint = checkpoint or Checkpoint()
 
     visited: set[str] = set()
     depth_limited_ids: set[str] = set()
@@ -89,7 +90,7 @@ def export_page_tree(
         visited.add(page_id)
 
         # Skip if already exported (unless force mode)
-        if not force and checkpoint.is_page_exported(page_id):
+        if not force and active_checkpoint.is_page_exported(page_id):
             return
 
         page = client.get_page(page_id)
@@ -126,7 +127,7 @@ def export_page_tree(
                     continue
 
                 # Skip if already exported (unless force mode)
-                if not force and checkpoint.is_database_exported(ds_id):
+                if not force and active_checkpoint.is_database_exported(ds_id):
                     continue
 
                 title_db = (b.get("child_database") or {}).get("title") or "Database"
@@ -143,11 +144,10 @@ def export_page_tree(
                 result.attachments_downloaded += res.attachments_downloaded
 
                 # Update checkpoint
-                checkpoint.add_database(ds_id)
-                checkpoint.add_rows(res.rows_exported)
+                active_checkpoint.add_database(ds_id)
+                active_checkpoint.add_rows(res.rows_exported)
                 for w in res.warnings:
-                    checkpoint.add_warning(w)
-                result._exported_database_ids.append(ds_id)
+                    active_checkpoint.add_warning(w)
 
             elif btype in {"image", "file"}:
                 url, caption, _ = _get_attachment_info(b)
@@ -205,8 +205,8 @@ def export_page_tree(
         result.files_written += 1  # Count the markdown file itself
 
         # Update checkpoint
-        checkpoint.add_page(page_id)
-        checkpoint.add_file(str(md_path.relative_to(out_dir)))
+        active_checkpoint.add_page(page_id)
+        active_checkpoint.add_file(str(md_path.relative_to(out_dir)))
 
         # recurse into child pages (depth limit check)
         if max_depth >= 0 and depth + 1 > max_depth:
@@ -247,19 +247,19 @@ def _render_blocks(
             continue
 
         if btype == "paragraph":
-            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map.get)
             if text:
                 out.append(indent + text)
                 out.append("")
 
         elif btype in {"heading_1", "heading_2", "heading_3"}:
             level = {"heading_1": "#", "heading_2": "##", "heading_3": "###"}[btype]
-            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map.get)
             out.append(indent + f"{level} {text}")
             out.append("")
 
         elif btype == "bulleted_list_item":
-            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map.get)
             out.append(indent + f"- {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
@@ -271,7 +271,7 @@ def _render_blocks(
                 )
 
         elif btype == "numbered_list_item":
-            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map.get)
             out.append(indent + f"1. {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
@@ -283,7 +283,7 @@ def _render_blocks(
                 )
 
         elif btype == "to_do":
-            text = rich_text_to_markdown(payload.get("rich_text"), page_map)
+            text = rich_text_to_markdown(payload.get("rich_text"), page_map.get)
             checked = payload.get("checked")
             box = "x" if checked else " "
             out.append(indent + f"- [{box}] {text}")
@@ -297,7 +297,7 @@ def _render_blocks(
                 )
 
         elif btype == "toggle":
-            summary = rich_text_to_markdown(payload.get("rich_text"), page_map)
+            summary = rich_text_to_markdown(payload.get("rich_text"), page_map.get)
             body: list[str] = []
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
