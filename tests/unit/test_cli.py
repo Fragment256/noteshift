@@ -5,7 +5,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from noteshift.cli import app
-from noteshift.types import ExportResult, PreflightReport
+from noteshift.types import ExportPlan, ExportResult, PreflightReport
 
 runner = CliRunner()
 
@@ -161,3 +161,55 @@ def test_export_shows_warnings(monkeypatch, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Warnings" in result.output
     assert "warn one" in result.output
+
+
+def test_export_rejects_empty_plan(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "--out",
+            str(tmp_path / "out"),
+            "--notion-token",
+            "secret",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Export plan is empty" in result.output
+
+
+def test_export_multiple_page_and_database_ids(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def ok_preflight(plan, _config):  # type: ignore[no-untyped-def]
+        captured["plan"] = plan
+        return PreflightReport(ok=True)
+
+    def ok_run_export(**kwargs):  # type: ignore[no-untyped-def]
+        captured["kwargs"] = kwargs
+        return _ok_result(tmp_path)
+
+    monkeypatch.setattr("noteshift.cli.preflight", ok_preflight)
+    monkeypatch.setattr("noteshift.cli.run_export", ok_run_export)
+
+    result = runner.invoke(
+        app,
+        [
+            "--page-id",
+            "page-1",
+            "--page-id",
+            "page-2",
+            "--database-id",
+            "db-1",
+            "--out",
+            str(tmp_path / "out"),
+            "--notion-token",
+            "secret",
+        ],
+    )
+
+    assert result.exit_code == 0
+    plan = captured["plan"]
+    assert isinstance(plan, ExportPlan)
+    assert plan.page_ids == ["page-1", "page-2"]
+    assert plan.database_ids == ["db-1"]

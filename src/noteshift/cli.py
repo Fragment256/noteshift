@@ -13,10 +13,20 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 @app.command()
 def export(
-    page_id: str = typer.Option(
-        ...,
+    page_id: list[str] = typer.Option(
+        None,
         "--page-id",
-        help="Root Notion page ID to export (UUID with or without dashes).",
+        help=(
+            "Root Notion page ID to export (UUID with or without dashes). Repeatable."
+        ),
+    ),
+    database_id: list[str] = typer.Option(
+        None,
+        "--database-id",
+        help=(
+            "Notion database/data source ID to export (UUID with or without dashes). "
+            "Repeatable."
+        ),
     ),
     out: Path = typer.Option(
         Path("./out"), "--out", help="Output directory (will be created)."
@@ -38,10 +48,17 @@ def export(
     max_depth: int = typer.Option(
         2,
         "--max-depth",
-        help="Maximum recursion depth to export. Set higher values for deeper trees.",
+        help="Maximum recursion depth when exporting page trees.",
     ),
 ):
-    """Export a Notion page tree to Markdown."""
+    """Export Notion page trees and/or databases to Markdown."""
+
+    page_ids = page_id or []
+    database_ids = database_id or []
+    if not page_ids and not database_ids:
+        raise typer.BadParameter(
+            "Export plan is empty. Provide at least one --page-id or --database-id."
+        )
 
     token = notion_token or os.getenv("NOTION_TOKEN") or ""
     out = out.resolve()
@@ -53,7 +70,7 @@ def export(
         force=force,
         max_depth=max_depth,
     )
-    plan = ExportPlan(page_ids=[page_id], database_ids=[])
+    plan = ExportPlan(page_ids=page_ids, database_ids=database_ids)
 
     report = preflight(plan, config)
     if not report.ok:
@@ -64,9 +81,25 @@ def export(
     else:
         typer.echo(f"Loading checkpoint from {out / '.checkpoint.json'}")
 
-    typer.echo(f"NoteShift exporting page tree {page_id} to {out}")
+    if page_ids:
+        typer.echo(
+            "NoteShift exporting "
+            + ("1 page tree" if len(page_ids) == 1 else f"{len(page_ids)} page trees")
+            + f" to {out}"
+        )
+    if database_ids:
+        typer.echo(
+            "NoteShift exporting "
+            + (
+                "1 database"
+                if len(database_ids) == 1
+                else f"{len(database_ids)} databases"
+            )
+            + f" to {out}"
+        )
 
-    typer.echo(f"Maximum depth set to {max_depth} levels.")
+    if page_ids:
+        typer.echo(f"Maximum depth set to {max_depth} levels.")
 
     result = run_export(plan=plan, config=config)
 
