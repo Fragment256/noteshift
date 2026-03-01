@@ -28,6 +28,7 @@ Teams migrating from Notion to Obsidian consistently report four pains:
 
 - Docs index: [`docs/`](docs/index.md)
 - Start here: [Getting started](docs/getting-started.md)
+- Library integration: [API contract](docs/api-contract.md)
 
 ## Installation
 

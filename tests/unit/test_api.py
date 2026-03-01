@@ -30,7 +30,7 @@ def test_run_export_validation_errors(tmp_path: Path) -> None:
 def test_run_export_emits_progress_events(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    events: list[str] = []
+    events: list[tuple[str, str | None]] = []
 
     def fake_export_page_tree(**_kwargs):
         checkpoint = _kwargs["checkpoint"]
@@ -47,11 +47,17 @@ def test_run_export_emits_progress_events(
     )
     plan = ExportPlan(page_ids=["root-page-id"], database_ids=[])
 
-    result = run_export(plan, config, progress=lambda e: events.append(e.type))
+    result = run_export(plan, config, progress=lambda e: events.append((e.type, e.id)))
 
     assert result.pages_exported == 1
-    assert "phase" in events
-    assert "item_start" in events
-    assert "item_done" in events
-    assert "checkpoint" in events
-    assert "summary" in events
+
+    # Ordering invariants
+    assert events[0][0] == "phase"
+    assert ("item_start", "root-page-id") in events
+    assert ("item_done", "root-page-id") in events
+    assert any(t == "checkpoint" for t, _ in events)
+    assert events[-1][0] == "summary"
+
+    start_idx = events.index(("item_start", "root-page-id"))
+    done_idx = events.index(("item_done", "root-page-id"))
+    assert start_idx < done_idx
