@@ -1,8 +1,8 @@
 # Concepts
 
-## What noteshift exports
+## What NoteShift exports
 
-noteshift exports Notion content to Obsidian-friendly Markdown.
+NoteShift exports Notion content to Obsidian-friendly Markdown.
 
 Two primary export sources:
 
@@ -11,7 +11,7 @@ Two primary export sources:
 
 ## Checkpoint / resume
 
-Exports can be long-running. noteshift writes a `.checkpoint.json` file in the output directory.
+Exports can be long-running. NoteShift writes a `.checkpoint.json` file in the output directory.
 
 - If an export is interrupted, running the same export again will resume using the checkpoint.
 - Use `--force` (or `force=True` in the library config) to start fresh.

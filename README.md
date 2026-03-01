@@ -1,6 +1,6 @@
-# noteshift
+# NoteShift (`noteshift`)
 
-`noteshift` exports Notion content to Obsidian-friendly Markdown with predictable filenames, link rewriting, and checkpoint/resume support.
+**NoteShift** exports Notion content to Obsidian-friendly Markdown with predictable filenames, link rewriting, and checkpoint/resume support.
 
 [![CI](https://github.com/Fragment256/noteshift/actions/workflows/ci.yml/badge.svg)](https://github.com/Fragment256/noteshift/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/noteshift.svg)](https://pypi.org/project/noteshift/)
@@ -16,7 +16,7 @@ Teams migrating from Notion to Obsidian consistently report four pains:
 3. long exports failing midway without resume
 4. low confidence in migration correctness
 
-`noteshift` is focused on solving those pains first.
+NoteShift is focused on solving those pains first.
 
 ## Current capabilities
 
