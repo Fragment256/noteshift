@@ -1,0 +1,32 @@
+interactions:
+- request:
+    method: POST
+    uri: https://api.notion.com/v1/data_sources/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/query
+    body: '{"page_size":100}'
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - DUMMY
+      connection:
+      - keep-alive
+      content-length:
+      - '17'
+      content-type:
+      - application/json
+      notion-version:
+      - '2025-09-03'
+      user-agent:
+      - python-httpx/0.28.1
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      content-type:
+      - application/json
+    body:
+      string: '{"results":[{"id":"row-1"},{"id":"row-2"}],"has_more":false}'
+version: 1
