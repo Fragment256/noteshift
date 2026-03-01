@@ -47,7 +47,9 @@ def export_child_database(
 
     try:
         schema = client.get_data_source(data_source_id)
-        schema_path.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        schema_path.write_text(
+            json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
         files_written += 1
     except Exception as e:  # noqa: BLE001
         warnings.append(f"Failed to fetch schema for data source {data_source_id}: {e}")

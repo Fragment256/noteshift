@@ -1,95 +1,99 @@
 # noteshift
 
-![PyPI](https://img.shields.io/pypi/v/noteshift)
-![Python](https://img.shields.io/pypi/pyversions/noteshift)
-![Tests](https://github.com/lukemaxwell/noteshift/actions/workflows/ci.yml/badge.svg)
+`noteshift` exports Notion content to Obsidian-friendly Markdown with predictable filenames, link rewriting, and checkpoint/resume support.
 
-`Notion exporter for seamless Obsidian migration.`
+![CI](https://github.com/Fragment256/noteshift/actions/workflows/ci.yml/badge.svg)
 
-## 🚀 What is noteshift?
+## Why it exists
 
-`noteshift` is a powerful command-line tool designed to facilitate the migration of your notes from Notion to Obsidian. It aims to provide a robust and efficient way to export your Notion pages and databases, preserving your data structure and content as closely as possible.
+Teams migrating from Notion to Obsidian consistently report four pains:
 
-## ✨ MVP Features
+1. broken internal links after export
+2. inconsistent filenames and folder layout
+3. long exports failing midway without resume
+4. low confidence in migration correctness
 
-*   **Page Export**: Export individual Notion pages and their content.
-*   **Database Export**: Export Notion databases into a structured format suitable for Obsidian.
-*   **Link Rewriting**: Automatically rewrites Notion internal links to Obsidian-compatible links.
-*   **Attachments**: Handles image and file attachments, ensuring they are correctly exported and linked.
-*   **Checkpoint/Resume**: Supports resuming interrupted migrations, saving progress and preventing data loss.
-*   **Migration Reports**: Generates detailed reports on the migration process, highlighting successes and any encountered issues.
+`noteshift` is focused on solving those pains first.
 
-## 📦 Installation
+## Current capabilities
 
-You can install `noteshift` using `pip` or `uv` directly from its Git repository:
+- Export a Notion page tree to Markdown
+- Export Notion data sources/databases through API layer
+- Rewrite internal links for Obsidian compatibility
+- Preserve and download attachments
+- Resume interrupted runs via checkpoint file
+- Emit migration report (`migration_report.json` + `.md`)
 
-```bash
-# Using pip
-pip install git+https://github.com/yourusername/noteshift.git
-
-# Using uv
-# uv install git+https://github.com/yourusername/noteshift.git
-```
-
-*(Note: Replace `https://github.com/yourusername/noteshift.git` with the actual repository URL if different.)*
-
-## 🔌 Environment Variables
-
-`noteshift` requires your Notion API integration token to authenticate with the Notion API.
-
-*   `NOTESHIFT_NOTION_TOKEN`: Your Notion Internal Integration Token.
-
-Ensure this token is set in your environment before running the tool.
-
-## 🎮 Basic Usage
-
-Here's a simple example of how to use `noteshift` from your terminal:
+## Installation
 
 ```bash
-export NOTESHIFT_NOTION_TOKEN="your_super_secret_token"
-noteshift export --space-id "your_notion_space_id" --output-dir ./my-notion-export
+uv tool install .
+# or for development
+uv sync --extra dev --extra test
 ```
 
-This command will export your Notion content from the specified space ID to the `./my-notion-export` directory.
+## Authentication
 
-## 📁 Output Structure
+Set a Notion integration token in `NOTION_TOKEN`.
 
-Upon a successful export, `noteshift` will create a directory structure that mirrors your Notion hierarchy, with Markdown files (`.md`) for pages and associated assets (like images) placed alongside them. Database exports will be in a structured format (e.g., CSV or JSON) within the output directory.
-
-## 🛠️ Development Setup
-
-To set up `noteshift` for development, follow these steps:
-
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/yourusername/noteshift.git
-    cd noteshift
-    ```
-
-2.  **Create and activate a virtual environment**:
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    # or for uv:
-    # uv venv
-    # source .venv/bin/activate
-    ```
-
-3.  **Install dependencies**:
-    ```bash
-    # Using pip
-pip install -e .[dev]
-
-# Using uv
-# uv sync --dev
+```bash
+export NOTION_TOKEN="secret_xxx"
 ```
 
-*(Note: `.[dev]` or `--dev` assumes your `pyproject.toml` defines a `[project.optional-dependencies]` for development tools like linters, formatters, etc.)*
+## Basic usage
 
-4.  **Run linters/formatters (optional but recommended)**:
-    ```bash
-    ruff check .
-    ruff format .
-    ```
+```bash
+noteshift export \
+  --page-id "<notion-page-id>" \
+  --out ./export \
+  --max-depth 2 \
+  --overwrite
+```
 
-Now you are ready to make changes and contribute!
+## Output
+
+A successful run writes:
+
+- Markdown files for exported pages
+- downloaded assets in the export tree
+- `.checkpoint.json` for resume
+- `migration_report.json`
+- `migration_report.md`
+
+## Development
+
+```bash
+uv sync --extra dev --extra test
+uv run ruff format .
+uv run ruff check .
+uv run mypy src
+uv run pytest --cov=noteshift --cov-report=term
+```
+
+## Contract tests (`pytest-vcr`)
+
+Contract tests are deterministic and replay HTTP traffic from sanitized cassettes:
+
+```bash
+uv run pytest -m contract
+```
+
+To re-record cassettes intentionally, set a real token in your environment and run:
+
+```bash
+VCR_RECORD_MODE=once uv run pytest -m contract
+```
+
+## Roadmap and readiness
+
+Readiness work is tracked in GitHub issues:
+
+- Epic: transfer + production/open-source readiness
+- OSS baseline docs and metadata
+- CI hardening
+- customer-pain validation matrix
+- contract/e2e test expansion
+
+## License
+
+MIT

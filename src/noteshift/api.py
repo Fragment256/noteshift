@@ -18,7 +18,9 @@ def _emit(progress: ProgressSink | None, event: ProgressEvent) -> None:
         progress(event)
 
 
-def _write_migration_report(out_dir: Path, checkpoint: Checkpoint) -> tuple[Path, list[str]]:
+def _write_migration_report(
+    out_dir: Path, checkpoint: Checkpoint
+) -> tuple[Path, list[str]]:
     report_errors: list[str] = []
     report_data = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -47,7 +49,10 @@ def _write_migration_report(out_dir: Path, checkpoint: Checkpoint) -> tuple[Path
             f"| Pages Exported | {report_data['pages_exported_total']} |",
             f"| Databases Exported | {report_data['databases_exported_total']} |",
             f"| Rows Exported | {report_data['rows_exported_total']} |",
-            f"| Attachments Downloaded | {report_data['attachments_downloaded_total']} |",
+            (
+                "| Attachments Downloaded | "
+                f"{report_data['attachments_downloaded_total']} |"
+            ),
             f"| Files Written | {report_data['files_written_total']} |",
             "",
             "## Warnings",
@@ -87,7 +92,9 @@ def preflight(plan: ExportPlan, config: NoteshiftConfig) -> PreflightReport:
         )
 
     if not plan.page_ids and not plan.database_ids:
-        errors.append("Export plan is empty. Provide at least one page_id or database_id.")
+        errors.append(
+            "Export plan is empty. Provide at least one page_id or database_id."
+        )
 
     if config.max_depth < 0:
         errors.append("max_depth must be >= 0.")
@@ -100,7 +107,10 @@ def preflight(plan: ExportPlan, config: NoteshiftConfig) -> PreflightReport:
                 "Choose a directory path for out_dir."
             )
         elif any(out_dir.iterdir()) and not config.overwrite:
-            errors.append(f"Output dir {out_dir} is not empty. Use overwrite=True or choose a new out_dir.")
+            errors.append(
+                f"Output dir {out_dir} is not empty. "
+                "Use overwrite=True or choose a new out_dir."
+            )
 
     return PreflightReport(ok=not errors, errors=errors, warnings=warnings)
 
@@ -145,14 +155,20 @@ def run_export(
         except Exception as exc:  # noqa: BLE001
             msg = f"Failed to export page {page_id}: {exc}"
             all_errors.append(msg)
-            _emit(progress, ProgressEvent(type="error", id=page_id, title="page", message=msg))
+            _emit(
+                progress,
+                ProgressEvent(type="error", id=page_id, title="page", message=msg),
+            )
             if config.fail_fast:
                 raise RuntimeError(msg) from exc
 
     if plan.database_ids:
         client = NotionClient(token)
         for database_id in plan.database_ids:
-            _emit(progress, ProgressEvent(type="item_start", id=database_id, title="database"))
+            _emit(
+                progress,
+                ProgressEvent(type="item_start", id=database_id, title="database"),
+            )
             try:
                 schema = client.get_data_source(database_id)
                 title = _database_title(schema)
@@ -168,13 +184,26 @@ def run_export(
                     checkpoint.add_warning(warning)
                     _emit(
                         progress,
-                        ProgressEvent(type="warning", id=database_id, title="database", message=warning),
+                        ProgressEvent(
+                            type="warning",
+                            id=database_id,
+                            title="database",
+                            message=warning,
+                        ),
                     )
-                _emit(progress, ProgressEvent(type="item_done", id=database_id, title="database"))
+                _emit(
+                    progress,
+                    ProgressEvent(type="item_done", id=database_id, title="database"),
+                )
             except Exception as exc:  # noqa: BLE001
                 msg = f"Failed to export database {database_id}: {exc}"
                 all_errors.append(msg)
-                _emit(progress, ProgressEvent(type="error", id=database_id, title="database", message=msg))
+                _emit(
+                    progress,
+                    ProgressEvent(
+                        type="error", id=database_id, title="database", message=msg
+                    ),
+                )
                 if config.fail_fast:
                     raise RuntimeError(msg) from exc
 

@@ -1,6 +1,5 @@
 """Tests for license module."""
 
-
 from noteshift.license import check_depth_limit, get_depth_warning, verify_license
 
 
@@ -73,4 +72,6 @@ class TestGetDepthWarning:
         """No warning for paid tier (never called in practice)."""
         # This wouldn't actually be called for paid users
         # But tests the behavior
-        assert get_depth_warning(999, 999) is not None  # Still returns warning at exact limit
+        assert (
+            get_depth_warning(999, 999) is not None
+        )  # Still returns warning at exact limit

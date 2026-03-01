@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 
 def verify_license(key: str | None = None) -> dict:
     """Verify license and return feature limits.
-    
+
     Args:
         key: License key. If None or invalid, returns free tier limits.
-    
+
     Returns:
         dict with keys:
         - max_depth: int - maximum export depth (2 for free, 999 for paid)
@@ -27,26 +27,23 @@ def verify_license(key: str | None = None) -> dict:
     if key == "DEMO":
         return {
             "max_depth": 999,
-            "features": ["unlimited_depth", "checkpoint_resume", "migration_reports"]
+            "features": ["unlimited_depth", "checkpoint_resume", "migration_reports"],
         }
-    
+
     # Free tier
-    return {
-        "max_depth": 2,
-        "features": []
-    }
+    return {"max_depth": 2, "features": []}
 
 
 def check_depth_limit(current_depth: int, active_depth: int, has_license: bool) -> bool:
     """Check if children can be exported (would be at depth + 1).
-    
+
     Args:
         current_depth: Current recursion depth (0-indexed from root)
         active_depth: Maximum allowed depth from license
         has_license: Whether user has a valid license
-        
+
     Returns:
-        True if export should proceed (children at depth+1), False if depth limit reached
+        True when export should proceed. False when depth limit is reached.
     """
     if has_license:
         return True
@@ -56,11 +53,11 @@ def check_depth_limit(current_depth: int, active_depth: int, has_license: bool) 
 
 def get_depth_warning(current_depth: int, max_depth: int) -> str | None:
     """Get warning message when depth limit is reached for children.
-    
+
     Args:
         current_depth: Current recursion depth
         max_depth: Maximum allowed depth for this license tier
-        
+
     Returns:
         Warning message if children would exceed limit, None otherwise
     """

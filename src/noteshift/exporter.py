@@ -6,7 +6,12 @@ from pathlib import Path
 from noteshift.checkpoint import Checkpoint
 from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
-from noteshift.markdown import indent_lines, render_toggle, rich_text_plain, rich_text_to_markdown
+from noteshift.markdown import (
+    indent_lines,
+    render_toggle,
+    rich_text_plain,
+    rich_text_to_markdown,
+)
 from noteshift.notion import NotionClient
 
 
@@ -36,11 +41,15 @@ def _get_attachment_info(block: dict) -> tuple[str | None, str | None, str | Non
 
     if btype == "image":
         url = payload.get("file", {}).get("url")
-        caption = rich_text_to_markdown(payload.get("caption"), page_map={})  # No internal links in captions
+        caption = rich_text_to_markdown(
+            payload.get("caption"), page_map={}
+        )  # No internal links in captions
         return url, caption, "image"
     elif btype == "file":
         url = payload.get("file", {}).get("url")
-        caption = rich_text_to_markdown(payload.get("caption"), page_map={})  # No internal links in captions
+        caption = rich_text_to_markdown(
+            payload.get("caption"), page_map={}
+        )  # No internal links in captions
         return url, caption, "file"
     return None, None, None
 
@@ -111,7 +120,9 @@ def export_page_tree(
             if btype == "child_database":
                 ds_id = b.get("id")
                 if not ds_id:
-                    result.warnings.append(f"child_database missing id on page {page_id}")
+                    result.warnings.append(
+                        f"child_database missing id on page {page_id}"
+                    )
                     continue
 
                 # Skip if already exported (unless force mode)
@@ -142,7 +153,9 @@ def export_page_tree(
                 url, caption, _ = _get_attachment_info(b)
                 if url:
                     try:
-                        filename = Path(url.split("/")[-1].split("?")[0])  # Basic extraction
+                        filename = Path(
+                            url.split("/")[-1].split("?")[0]
+                        )  # Basic extraction
                         # Sanitize filename and ensure it's unique within _assets
                         sanitized_filename = Path(policy.slug(str(filename)))
                         deduped_filename = deduper.dedupe(str(sanitized_filename))
@@ -156,16 +169,24 @@ def export_page_tree(
                         asset_md_ref_str = asset_md_ref.as_posix()
 
                         if caption:
-                            rendered_content_lines.append(f"![{caption}]({asset_md_ref_str})")
+                            rendered_content_lines.append(
+                                f"![{caption}]({asset_md_ref_str})"
+                            )
                         else:
-                            rendered_content_lines.append(f"![{deduped_filename}]({asset_md_ref_str})")
+                            rendered_content_lines.append(
+                                f"![{deduped_filename}]({asset_md_ref_str})"
+                            )
 
                         result.attachments_downloaded += 1
 
                     except Exception as e:  # noqa: BLE001
-                        result.warnings.append(f"Failed to download attachment {url} for page {title}: {e}")
+                        result.warnings.append(
+                            f"Failed to download attachment {url} for page {title}: {e}"
+                        )
                 else:
-                    result.warnings.append(f"Attachment block missing URL or type on page {title}")
+                    result.warnings.append(
+                        f"Attachment block missing URL or type on page {title}"
+                    )
 
             else:
                 # For other block types, treat them as content to be rendered
@@ -244,9 +265,7 @@ def _render_blocks(
                 children = client.list_block_children(b["id"])
                 out.extend(
                     indent_lines(
-                        _render_blocks(
-                            client, children, indent="", page_map=page_map
-                        ),
+                        _render_blocks(client, children, indent="", page_map=page_map),
                         indent + "  ",
                     )
                 )
@@ -256,9 +275,12 @@ def _render_blocks(
             out.append(indent + f"1. {text}")
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                out.extend(indent_lines(
-                    _render_blocks(client, children, indent="", page_map=page_map), indent + "   "
-                ))
+                out.extend(
+                    indent_lines(
+                        _render_blocks(client, children, indent="", page_map=page_map),
+                        indent + "   ",
+                    )
+                )
 
         elif btype == "to_do":
             text = rich_text_to_markdown(payload.get("rich_text"), page_map)
@@ -269,9 +291,7 @@ def _render_blocks(
                 children = client.list_block_children(b["id"])
                 out.extend(
                     indent_lines(
-                        _render_blocks(
-                            client, children, indent="", page_map=page_map
-                        ),
+                        _render_blocks(client, children, indent="", page_map=page_map),
                         indent + "  ",
                     )
                 )
@@ -289,6 +309,8 @@ def _render_blocks(
             # For unhandled block types, preserve children if they exist
             if b.get("has_children"):
                 children = client.list_block_children(b["id"])
-                out.extend(_render_blocks(client, children, indent=indent, page_map=page_map))
+                out.extend(
+                    _render_blocks(client, children, indent=indent, page_map=page_map)
+                )
 
     return out

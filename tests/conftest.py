@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 from unittest.mock import MagicMock
 
 import pytest
 
 
 @pytest.fixture
-def mock_notion_client():
-    """Provides a mock NotionClient instance."""
-    client = MagicMock()
-    # You can configure mock client methods and return values here
-    # Example:
-    # client.pages.list.return_value = [
-    #     {"id": "123", "properties": {"Name": {"title": [{"text": {"content": "Test Page"}}]}}}
-    # ]
-    return client
+def mock_notion_client() -> MagicMock:
+    """Provide a mock Notion client instance for unit tests."""
+    return MagicMock()
 
-# Add other fixtures as needed, e.g., for specific page data, database structures, etc.
+
+@pytest.fixture(scope="module")
+def vcr_config() -> dict[str, object]:
+    """Configure pytest-vcr to scrub secret headers from cassettes."""
+    return {
+        "filter_headers": [("authorization", "DUMMY")],
+        "filter_query_parameters": [("token", "DUMMY")],
+        "record_mode": "none",
+    }
