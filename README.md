@@ -102,16 +102,6 @@ To re-record cassettes intentionally, set a real token in your environment and r
 VCR_RECORD_MODE=once uv run pytest -m contract
 ```
 
-## Roadmap and readiness
-
-Readiness work is tracked in GitHub issues:
-
-- Epic: transfer + production/open-source readiness
-- OSS baseline docs and metadata
-- CI hardening
-- customer-pain validation matrix
-- contract/e2e test expansion
-
 ## License
 
 MIT
