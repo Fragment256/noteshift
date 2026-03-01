@@ -37,7 +37,7 @@ jobs:
         run: uv run mypy src
 
       - name: Unit and integration tests
-        run: uv run pytest --cov=noteshift --cov-report=term --cov-fail-under=58 tests/
+        run: uv run pytest --cov=noteshift --cov-report=term --cov-fail-under=65 tests/
 
       - name: Contract tests (vcr replay)
         run: uv run pytest -m contract
