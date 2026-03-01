@@ -24,11 +24,25 @@ Teams migrating from Notion to Obsidian consistently report four pains:
 - Resume interrupted runs via checkpoint file
 - Emit migration report (`migration_report.json` + `.md`)
 
+## Documentation
+
+- Docs index: [`docs/`](docs/index.md)
+- Start here: [Getting started](docs/getting-started.md)
+
 ## Installation
+
+### Install from PyPI
+
+```bash
+uv tool install noteshift
+# or
+pipx install noteshift
+```
+
+### Install from source (development)
 
 ```bash
 uv tool install .
-# or for development
 uv sync --extra dev --extra test
 ```
 
