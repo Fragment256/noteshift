@@ -2,7 +2,10 @@
 
 `noteshift` exports Notion content to Obsidian-friendly Markdown with predictable filenames, link rewriting, and checkpoint/resume support.
 
-![CI](https://github.com/Fragment256/noteshift/actions/workflows/ci.yml/badge.svg)
+[![CI](https://github.com/Fragment256/noteshift/actions/workflows/ci.yml/badge.svg)](https://github.com/Fragment256/noteshift/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/noteshift.svg)](https://pypi.org/project/noteshift/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/noteshift.svg)](https://pypi.org/project/noteshift/)
+[![codecov](https://codecov.io/gh/Fragment256/noteshift/branch/main/graph/badge.svg)](https://codecov.io/gh/Fragment256/noteshift)
 
 ## Why it exists
 
