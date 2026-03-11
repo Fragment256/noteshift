@@ -22,7 +22,9 @@ class ExportResult:
     warnings: list[str] = field(default_factory=list)
     databases_exported: int = 0
     rows_exported: int = 0
+    attachments_attempted: int = 0
     attachments_downloaded: int = 0
+    attachments_failed: int = 0
 
 
 def _page_title(page: dict) -> str:
@@ -162,6 +164,7 @@ def export_page_tree(
             elif btype in {"image", "file"}:
                 url, caption, _ = _get_attachment_info(b)
                 if url:
+                    result.attachments_attempted += 1
                     try:
                         filename = Path(
                             url.split("/")[-1].split("?")[0]
@@ -190,6 +193,7 @@ def export_page_tree(
                         result.attachments_downloaded += 1
 
                     except Exception as e:  # noqa: BLE001
+                        result.attachments_failed += 1
                         result.warnings.append(
                             f"Failed to download attachment {url} for page {title}: {e}"
                         )

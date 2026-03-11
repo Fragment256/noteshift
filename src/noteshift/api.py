@@ -273,7 +273,9 @@ def run_export(
         pages_exported=len(checkpoint.page_ids),
         databases_exported=len(checkpoint.database_ids),
         rows_exported=checkpoint.rows_exported,
+        attachments_attempted=checkpoint.attachments_attempted,
         attachments_downloaded=checkpoint.attachments_downloaded,
+        attachments_failed=checkpoint.attachments_failed,
         warnings=list(checkpoint.warnings),
         errors=recon_report.errors + report_errors,
     )
@@ -286,7 +288,10 @@ def run_export(
                 f"pages={summary.pages_exported}, "
                 f"databases={summary.databases_exported}, "
                 f"rows={summary.rows_exported}, "
-                f"attachments={summary.attachments_downloaded}"
+                f"attachments="
+                f"({summary.attachments_attempted} attempted, "
+                f"{summary.attachments_downloaded} downloaded, "
+                f"{summary.attachments_failed} failed)"
             ),
         ),
     )

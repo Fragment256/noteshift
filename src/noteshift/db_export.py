@@ -13,7 +13,9 @@ class DataSourceExportResult:
     data_sources_exported: int
     rows_exported: int
     files_written: int
+    attachments_attempted: int
     attachments_downloaded: int
+    attachments_failed: int
     warnings: list[str]
 
 
@@ -87,6 +89,8 @@ def export_child_database(
         data_sources_exported=1,
         rows_exported=len(rows),
         files_written=files_written,
+        attachments_attempted=0,
         attachments_downloaded=0,
+        attachments_failed=0,
         warnings=warnings,
     )
