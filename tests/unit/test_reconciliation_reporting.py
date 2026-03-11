@@ -134,3 +134,84 @@ def test_fail_fast_writes_reconciliation_before_raise(
     recon = _load_recon(out_dir)
     assert any(i["id"] == "p1" and i["status"] == "failed" for i in recon["items"])
     assert recon["errors"]
+
+
+def test_reconciliation_db_success_records_warnings(
+    monkeypatch, tmp_path: Path
+) -> None:
+    out_dir = tmp_path / "out"
+
+    class _Client:
+        def __init__(self, token: str):
+            self.token = token
+
+        def resolve_data_source_id(self, raw: str) -> str:
+            assert raw == "db-raw"
+            return "ds-1"
+
+        def get_data_source(self, data_source_id: str) -> dict:
+            assert data_source_id == "ds-1"
+            return {"title": [{"plain_text": "My DB"}]}
+
+    class _DBResult:
+        rows_exported = 3
+        warnings = ["w1"]
+
+    def fake_export_child_database(*, client, data_source_id, title, out_dir):
+        assert data_source_id == "ds-1"
+        assert title == "My DB"
+        return _DBResult()
+
+    monkeypatch.setattr("noteshift.api.NotionClient", _Client)
+    monkeypatch.setattr(
+        "noteshift.api.export_child_database", fake_export_child_database
+    )
+
+    config = NoteshiftConfig(notion_token="t", out_dir=out_dir, overwrite=True)
+    plan = ExportPlan(page_ids=[], database_ids=["db-raw"])
+
+    res = run_export(plan, config)
+    assert res.databases_exported == 1
+    assert res.rows_exported == 3
+    assert res.warnings == ["w1"]
+
+    recon = _load_recon(out_dir)
+    assert recon["warnings"] == ["w1"]
+    assert any(i["id"] == "ds-1" and i["status"] == "success" for i in recon["items"])
+
+
+def test_fail_fast_db_error_writes_reconciliation(monkeypatch, tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+
+    class _Client:
+        def __init__(self, token: str):
+            self.token = token
+
+        def resolve_data_source_id(self, raw: str) -> str:
+            return "ds-1"
+
+        def get_data_source(self, data_source_id: str) -> dict:
+            return {"title": [{"plain_text": "My DB"}]}
+
+    def fake_export_child_database(*_args, **_kwargs):
+        raise RuntimeError("db boom")
+
+    monkeypatch.setattr("noteshift.api.NotionClient", _Client)
+    monkeypatch.setattr(
+        "noteshift.api.export_child_database", fake_export_child_database
+    )
+
+    config = NoteshiftConfig(
+        notion_token="t",
+        out_dir=out_dir,
+        overwrite=True,
+        fail_fast=True,
+    )
+    plan = ExportPlan(page_ids=[], database_ids=["db-raw"])
+
+    with pytest.raises(RuntimeError):
+        run_export(plan, config)
+
+    recon = _load_recon(out_dir)
+    assert any(i["id"] == "db-raw" and i["status"] == "failed" for i in recon["items"])
+    assert recon["errors"]
