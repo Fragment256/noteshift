@@ -10,6 +10,7 @@ from noteshift.db_export import export_child_database
 from noteshift.events import ProgressEvent, ProgressSink
 from noteshift.exporter import export_page_tree
 from noteshift.notion import NotionClient
+from noteshift.reconciliation import ReconciliationReport
 from noteshift.types import ExportPlan, ExportResult, NoteshiftConfig, PreflightReport
 
 
@@ -134,8 +135,9 @@ def run_export(
 
     checkpoint_path = out_dir / ".checkpoint.json"
     checkpoint = Checkpoint.load(checkpoint_path)
-    if config.force:
-        checkpoint = Checkpoint()
+
+    # Initialize reconciliation report (issue #50)
+    recon_report = ReconciliationReport.create(is_resumed=bool(checkpoint.timestamp))
 
     all_errors: list[str] = []
 
@@ -210,6 +212,14 @@ def run_export(
 
     checkpoint.save(checkpoint_path)
     _emit(progress, ProgressEvent(type="checkpoint", message=str(checkpoint_path)))
+
+    # Finalize + write reconciliation report
+    recon_report.finalize()
+    # For now: counts come from checkpoint; item wiring comes in later issues.
+    recon_report.total_items = len(checkpoint.page_ids) + len(checkpoint.database_ids)
+    recon_report.success_count = recon_report.total_items
+    recon_path = out_dir / "reconciliation_report.json"
+    recon_path.write_text(recon_report.to_json(), encoding="utf-8")
 
     report_path, report_errors = _write_migration_report(out_dir, checkpoint)
 
