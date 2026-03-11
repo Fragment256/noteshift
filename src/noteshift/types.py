@@ -36,5 +36,8 @@ class ExportResult:
     databases_exported: int
     rows_exported: int
     attachments_downloaded: int
+    # Attachment status tracking fields (issue #52)
+    attachments_attempted: int = 0
+    attachments_failed: int = 0
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
