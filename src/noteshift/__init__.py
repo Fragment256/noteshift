@@ -15,7 +15,7 @@ __all__ = [
     "run_export",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.1.4"
 
 
 def __getattr__(name: str) -> Any:
