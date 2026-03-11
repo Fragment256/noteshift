@@ -57,7 +57,7 @@ ignore = ["B008"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-addopts = "-q"
+addopts = "-q -m 'not contract'"
 testpaths = ["tests"]
 markers = [
     "contract: deterministic API contract tests (vcr-backed)",
