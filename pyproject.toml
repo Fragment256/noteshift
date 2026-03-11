@@ -1,6 +1,6 @@
 [project]
 name = "noteshift"
-version = "0.1.1"
+version = "0.1.2"
 description = "Export Notion pages and databases to Obsidian-friendly Markdown."
 readme = "README.md"
 requires-python = ">=3.11"
