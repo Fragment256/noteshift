@@ -191,7 +191,13 @@ def run_export(
                 resolved_id = database_id  # Fallback
 
             if resolved_id in checkpoint.database_ids:
-                # Already recorded as skipped above if matched
+                # Record as skipped (resumed export) even if the plan uses a
+                # database_id and the checkpoint stores the resolved data_source_id.
+                recon_report.add_skipped(
+                    resolved_id,
+                    "database",
+                    "already exported (checkpoint)",
+                )
                 continue
 
             _emit(
