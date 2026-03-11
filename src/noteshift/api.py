@@ -217,8 +217,14 @@ def run_export(
                 checkpoint.add_database(data_source_id)
                 checkpoint.add_rows(db_result.rows_exported)
 
-                # Record success in reconciliation report
-                recon_report.add_success(data_source_id, "database", title=title)
+                # Record success in reconciliation report with db summary
+                recon_report.add_success(
+                    data_source_id,
+                    "database",
+                    title=title,
+                    rows_exported=db_result.rows_exported,
+                    files_written=db_result.files_written,
+                )
 
                 for warning in db_result.warnings:
                     checkpoint.add_warning(warning)
