@@ -63,4 +63,8 @@ jobs:
             dist/*
 
       - name: Publish to PyPI (trusted publishing)
-        run: uv publish --trusted-publishing=always
+        uses: pypa/gh-action-pypi-publish@releases/v1
+        with:
+          # No API token is required for trusted publishing.
+          # The action will use the GitHub OIDC token.
+          packages-dir: ./dist/
