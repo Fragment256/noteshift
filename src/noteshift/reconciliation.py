@@ -259,23 +259,107 @@ class ReconciliationReport:
         """
         return json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
 
+    def to_markdown(self) -> str:
+        """Serialize to human-friendly markdown format.
+
+        Returns:
+            Markdown representation of the report
+        """
+        lines = [
+            "# Reconciliation Report",
+            "",
+            f"**Export Date:** {self.started_at}",
+            f"**Duration:** {self._format_duration()}",
+            f"**Resume:** {'Yes' if self.is_resumed else 'No'}",
+            "",
+            "## Summary",
+            "",
+            f"- **Total Items:** {self.total_items}",
+            f"- **Successful:** {self.success_count}",
+            f"- **Failed:** {self.failed_count}",
+            f"- **Skipped:** {self.skipped_count}",
+            "",
+        ]
+
+        # Group items by status
+        if self.items:
+            lines.append("## Items by Status")
+            lines.append("")
+
+            # Sort items by status and then by id
+            sorted_items = sorted(self.items, key=lambda x: (x.status, x.id))
+
+            for item in sorted_items:
+                title_str = f" ({item.title})" if item.title else ""
+                lines.append(f"- **{item.id}**{title_str}")
+                lines.append(f"  - Type: {item.item_type}")
+                lines.append(f"  - Status: {item.status}")
+                if item.message:
+                    lines.append(f"  - Message: {item.message}")
+                lines.append("")
+
+        # Errors section
+        if self.errors:
+            lines.append("## Errors")
+            lines.append("")
+            for error in self.errors:
+                lines.append(f"- {error}")
+            lines.append("")
+
+        # Warnings section
+        if self.warnings:
+            lines.append("## Warnings")
+            lines.append("")
+            for warning in self.warnings:
+                lines.append(f"- {warning}")
+            lines.append("")
+
+        return "\n".join(lines).rstrip() + "\n"
+
+    def _format_duration(self) -> str:
+        """Format the export duration as a human-readable string."""
+        if not self.completed_at or not self.started_at:
+            return "N/A"
+        try:
+            start = datetime.fromisoformat(self.started_at)
+            end = datetime.fromisoformat(self.completed_at)
+            duration = end - start
+            seconds = int(duration.total_seconds())
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            secs = seconds % 60
+            if hours > 0:
+                return f"{hours}h {minutes}m {secs}s"
+            if minutes > 0:
+                return f"{minutes}m {secs}s"
+            return f"{secs}s"
+        except (ValueError, TypeError):
+            return "N/A"
+
 
 def write_reconciliation_report(report: ReconciliationReport, out_dir: Path) -> Path:
-    """Write the reconciliation report to disk.
+    """Write the reconciliation report to disk in both JSON and Markdown formats.
 
-    The report is written to a fixed path: {out_dir}/reconciliation_report.json
+    The reports are written to:
+    - {out_dir}/reconciliation_report.json (machine-readable)
+    - {out_dir}/reconciliation_report.md (human-readable)
 
     Args:
         report: The reconciliation report to write
-        out_dir: Output directory for the report file
+        out_dir: Output directory for the report files
 
     Returns:
-        Path to the written report file
+        Path to the JSON report file (for backward compatibility)
     """
-    report_path = out_dir / "reconciliation_report.json"
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(report.to_json(), encoding="utf-8")
-    return report_path
+    # Write JSON version
+    json_path = out_dir / "reconciliation_report.json"
+    markdown_path = out_dir / "reconciliation_report.md"
+
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    json_path.write_text(report.to_json(), encoding="utf-8")
+    markdown_path.write_text(report.to_markdown(), encoding="utf-8")
+
+    return json_path
 
 
 def load_reconciliation_report(path: Path) -> ReconciliationReport | None:
