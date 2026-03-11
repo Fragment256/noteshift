@@ -17,6 +17,8 @@ class ReconciliationItem:
         status: Status of the item (success, failed, skipped)
         title: Optional title of the item
         message: Optional message (error or info)
+        rows_exported: For databases, number of rows exported
+        files_written: For databases, number of files written
     """
 
     id: str
@@ -24,16 +26,21 @@ class ReconciliationItem:
     status: str  # 'success', 'failed', 'skipped'
     title: str | None = None
     message: str | None = None
+    rows_exported: int = 0
+    files_written: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
-        return {
+        result: dict[str, Any] = {
             "id": self.id,
             "type": self.item_type,
             "status": self.status,
             "title": self.title,
             "message": self.message,
+            "rows_exported": self.rows_exported,
+            "files_written": self.files_written,
         }
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ReconciliationItem:
@@ -44,6 +51,8 @@ class ReconciliationItem:
             status=data["status"],
             title=data.get("title"),
             message=data.get("message"),
+            rows_exported=data.get("rows_exported", 0),
+            files_written=data.get("files_written", 0),
         )
 
 
@@ -97,7 +106,12 @@ class ReconciliationReport:
         )
 
     def add_success(
-        self, item_id: str, item_type: str, title: str | None = None
+        self,
+        item_id: str,
+        item_type: str,
+        title: str | None = None,
+        rows_exported: int = 0,
+        files_written: int = 0,
     ) -> None:
         """Record a successful item export.
 
@@ -105,6 +119,8 @@ class ReconciliationReport:
             item_id: Unique identifier for the item
             item_type: Type of item (page, database, etc.)
             title: Optional title of the item
+            rows_exported: Number of rows exported (for databases)
+            files_written: Number of files written (for databases)
         """
         self.items.append(
             ReconciliationItem(
@@ -112,6 +128,8 @@ class ReconciliationReport:
                 item_type=item_type,
                 status="success",
                 title=title,
+                rows_exported=rows_exported,
+                files_written=files_written,
             )
         )
         self.success_count += 1
