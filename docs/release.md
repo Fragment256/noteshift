@@ -1,48 +1,50 @@
-# Releasing the noteshift package
+# Release process
 
-This document outlines the process for releasing new versions of the noteshift Python package using GitHub Actions and PyPI's trusted publishing.
+This repo publishes to **PyPI** via GitHub Actions **trusted publishing**.
 
-## Prerequisites
+The Release workflow is triggered by pushing a tag that matches `v*`.
 
-*   You must have write access to the Fragment256/noteshift repository.
-*   A GitHub Actions release workflow must be triggered with a tag starting with `v` (e.g., `v1.0.0`).
+## Prereqs
 
-## Release Process
+- You must land changes to `main` via a PR (branch protection).
+- CI must be green (required checks).
 
-1.  **Create a new tag:**
-    ```bash
-    git tag vX.Y.Z  # Replace X.Y.Z with the new version number
-    git push origin vX.Y.Z
-    ```
-    This will automatically trigger the release workflow.
+## Step-by-step
 
-2.  **Monitor the GitHub Actions workflow:**
-    Navigate to the "Actions" tab in the repository to monitor the progress of the `Release` workflow. The workflow performs the following steps:
-    *   Checks out the code.
-    *   Sets up Python and installs dependencies.
-    *   Runs quality gates (formatting, linting, type checking, and tests).
-    *   Builds the package distributions (`sdist` and `wheel`) into the `dist/` directory.
-    *   Uploads the distribution artifacts to GitHub Releases.
-    *   Creates a GitHub Release with auto-generated release notes based on the changelog.
-    *   **Publishes the package to PyPI using trusted publishing.** This step uses OIDC to authenticate with PyPI, eliminating the need for manual API tokens.
+1) **Merge the release PR**
 
-## PyPI Trusted Publishing Configuration
+Typical contents:
+- Bump `project.version` in `pyproject.toml`
+- Update `CHANGELOG.md`
 
-The repository is configured to use PyPI's trusted publishing. This means that GitHub Actions can obtain short-lived OIDC tokens to authenticate with PyPI.
+2) **Create and push the tag**
 
-**Important:** The GitHub repository `Fragment256/noteshift` has been configured with the necessary OIDC settings on PyPI. No manual PyPI configuration is required on your part if you are a maintainer of this repository.
+From an up-to-date local `main`:
 
-If you encounter issues with publishing, ensure the following:
+```bash
+git checkout main
+git pull
 
-*   The GitHub repository has the `id-token: write` permission enabled for the `Release` workflow.
-*   The `release.yml` workflow correctly uses the `pypa/gh-action-pypi-publish` action, which handles the OIDC authentication flow.
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
 
-## Troubleshooting
+3) **Watch the Release workflow**
 
-If the release fails during the PyPI publishing step, double-check the workflow logs for specific error messages. Common issues include:
+GitHub Actions → Release
 
-*   Incorrect package name in `pyproject.toml`.
-*   Network issues preventing communication with PyPI.
-*   Recent changes in PyPI's OIDC requirements.
+The job should:
+- run quality gates (ruff / mypy / pytest + coverage threshold)
+- build wheel + sdist
+- create a GitHub Release with `dist/*` assets attached
+- publish to PyPI
 
-Closes #58
+4) **Verify publication**
+
+- GitHub Release exists: `https://github.com/Fragment256/noteshift/releases/tag/vX.Y.Z`
+- PyPI shows the version: `https://pypi.org/project/noteshift/X.Y.Z/`
+
+## Notes
+
+- If PyPI is slow to show a new version, wait ~30–60s and refresh.
+- If you see failures, check the workflow logs for the failing step.
