@@ -173,15 +173,16 @@ def run_export(
                 ProgressEvent(type="item_start", id=database_id, title="database"),
             )
             try:
-                schema = client.get_data_source(database_id)
+                data_source_id = client.resolve_data_source_id(database_id)
+                schema = client.get_data_source(data_source_id)
                 title = _database_title(schema)
                 db_result = export_child_database(
                     client=client,
-                    data_source_id=database_id,
+                    data_source_id=data_source_id,
                     title=title,
                     out_dir=out_dir,
                 )
-                checkpoint.add_database(database_id)
+                checkpoint.add_database(data_source_id)
                 checkpoint.add_rows(db_result.rows_exported)
                 for warning in db_result.warnings:
                     checkpoint.add_warning(warning)
@@ -189,14 +190,16 @@ def run_export(
                         progress,
                         ProgressEvent(
                             type="warning",
-                            id=database_id,
+                            id=data_source_id,
                             title="database",
                             message=warning,
                         ),
                     )
                 _emit(
                     progress,
-                    ProgressEvent(type="item_done", id=database_id, title="database"),
+                    ProgressEvent(
+                        type="item_done", id=data_source_id, title="database"
+                    ),
                 )
             except Exception as exc:  # noqa: BLE001
                 msg = f"Failed to export database {database_id}: {exc}"
