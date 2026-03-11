@@ -220,9 +220,7 @@ def test_fail_fast_db_error_writes_reconciliation(monkeypatch, tmp_path: Path) -
     assert recon["errors"]
 
 
-def test_reconciliation_db_includes_summary_fields(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_reconciliation_db_includes_summary_fields(monkeypatch, tmp_path: Path) -> None:
     """Test that db reconciliation items include summary fields."""
     out_dir = tmp_path / "out"
 
