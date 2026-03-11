@@ -63,7 +63,7 @@ jobs:
             dist/*
 
       - name: Publish to PyPI (trusted publishing)
-        uses: pypa/gh-action-pypi-publish@releases/v1
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           # No API token is required for trusted publishing.
           # The action will use the GitHub OIDC token.
