@@ -34,6 +34,16 @@ CI validates release metadata alignment between:
 
 If these drift, CI fails with an actionable error.
 
+## Required secret
+
+Configure repository secret:
+
+- `RELEASE_PLEASE_TOKEN`: a fine-grained PAT (or bot token) with permissions to:
+  - read/write repository contents
+  - read/write pull requests
+
+This token is used so release-please-created PRs reliably trigger CI checks.
+
 ## Notes
 
 - Do **not** manually edit version numbers on random PRs.
