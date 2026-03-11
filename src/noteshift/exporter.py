@@ -119,10 +119,20 @@ def export_page_tree(
             btype = b.get("type")
 
             if btype == "child_database":
-                ds_id = b.get("id")
-                if not ds_id:
+                raw_id = b.get("id")
+                if not raw_id:
                     result.warnings.append(
                         f"child_database missing id on page {page_id}"
+                    )
+                    continue
+
+                # Notion often provides a *database id* here; resolve to data_source_id.
+                try:
+                    ds_id = client.resolve_data_source_id(raw_id)
+                except Exception as exc:  # noqa: BLE001
+                    result.warnings.append(
+                        "Failed to resolve data source id for child_database "
+                        f"{raw_id}: {exc}"
                     )
                     continue
 
@@ -304,6 +314,12 @@ def _render_blocks(
                 body = _render_blocks(client, children, indent="", page_map=page_map)
             out.extend(indent_lines(render_toggle(summary, body), indent))
             out.append("")
+
+        elif btype == "bookmark":
+            url = payload.get("url")
+            if url:
+                out.append(indent + f"[{url}]({url})")
+                out.append("")
 
         else:
             # For unhandled block types, preserve children if they exist

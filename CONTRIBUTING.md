@@ -23,6 +23,9 @@ uv run pytest --cov=noteshift --cov-report=term
 - Reference linked issue(s).
 - Include tests for behavior changes.
 - Update docs for any CLI/API changes.
+- Keep or improve test coverage.
+- PRs should keep the **Codecov patch** check green (diff coverage meets target).
+- Reviewers: treat a failing coverage check as a merge blocker unless there’s a documented reason.
 
 ## Contract tests
 
