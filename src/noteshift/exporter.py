@@ -22,7 +22,9 @@ class ExportResult:
     warnings: list[str] = field(default_factory=list)
     databases_exported: int = 0
     rows_exported: int = 0
+    attachments_attempted: int = 0
     attachments_downloaded: int = 0
+    attachments_failed: int = 0
 
 
 def _page_title(page: dict) -> str:
