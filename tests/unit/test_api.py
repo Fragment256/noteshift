@@ -75,3 +75,37 @@ def test_run_export_emits_progress_events(
         if t == "item_done" and i == "root-page-id"
     )
     assert start_idx < done_idx
+
+
+def test_run_export_tracks_attachment_status(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Test that attachment status tracking fields are correctly populated."""
+
+    def fake_export_page_tree(**_kwargs):
+        # Simulate attachment download: 3 total, 2 success, 1 failure
+        # The exporter updates both result and checkpoint
+        checkpoint = _kwargs["checkpoint"]
+        for _ in range(3):
+            checkpoint.add_attachment_attempt()
+        for _ in range(2):
+            checkpoint.add_attachment_success()
+        checkpoint.add_attachment_failure()
+        checkpoint.add_warning("Failed to download attachment 3")
+
+    monkeypatch.setattr("noteshift.api.export_page_tree", fake_export_page_tree)
+
+    config = NoteshiftConfig(
+        notion_token="test-token",
+        out_dir=tmp_path / "out",
+        overwrite=True,
+    )
+    plan = ExportPlan(page_ids=["page-with-attachments"], database_ids=[])
+
+    result = run_export(plan, config)
+
+    # Verify attachment tracking fields are present and correct
+    assert result.attachments_attempted == 3
+    assert result.attachments_downloaded == 2
+    assert result.attachments_failed == 1
+    assert len(result.warnings) == 1

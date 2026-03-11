@@ -215,3 +215,95 @@ def test_fail_fast_db_error_writes_reconciliation(monkeypatch, tmp_path: Path) -
     recon = _load_recon(out_dir)
     assert any(i["id"] == "db-raw" and i["status"] == "failed" for i in recon["items"])
     assert recon["errors"]
+
+
+def test_reconciliation_report_markdown_generation(monkeypatch, tmp_path: Path) -> None:
+    """Test that markdown reconciliation report is generated."""
+    out_dir = tmp_path / "out"
+
+    class _Client:
+        def __init__(self, token: str):
+            self.token = token
+
+        def resolve_data_source_id(self, raw: str) -> str:
+            return "ds-1"
+
+        def get_data_source(self, data_source_id: str) -> dict:
+            return {"title": [{"plain_text": "Test DB"}]}
+
+    class _DBResult:
+        data_sources_exported = 1
+        rows_exported = 5
+        files_written = 2
+        attachments_downloaded = 0
+        warnings: list[str] = []
+
+    def fake_export_child_database(*, client, data_source_id, title, out_dir):
+        return _DBResult()
+
+    monkeypatch.setattr("noteshift.api.NotionClient", _Client)
+    monkeypatch.setattr(
+        "noteshift.api.export_child_database", fake_export_child_database
+    )
+
+    config = NoteshiftConfig(notion_token="t", out_dir=out_dir, overwrite=True)
+    plan = ExportPlan(page_ids=[], database_ids=["db-1"])
+
+    res = run_export(plan, config)
+    assert res.databases_exported == 1
+
+    # Check both JSON and markdown files exist
+    json_path = out_dir / "reconciliation_report.json"
+    markdown_path = out_dir / "reconciliation_report.md"
+
+    assert json_path.exists()
+    assert markdown_path.exists()
+
+    # Verify markdown content has expected sections
+    md_content = markdown_path.read_text(encoding="utf-8")
+    assert "# Reconciliation Report" in md_content
+    assert "**Export Date:**" in md_content
+    assert "## Summary" in md_content
+    assert "- **Total Items:**" in md_content
+    assert "- **Successful:**" in md_content
+    assert "- **Failed:**" in md_content
+    assert "- **Skipped:**" in md_content
+
+    # Verify database item is listed
+    assert "ds-1" in md_content
+    assert "Test DB" in md_content
+    assert "database" in md_content
+    assert "success" in md_content.lower()
+
+
+def test_reconciliation_markdown_includes_errors_and_warnings(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Test that markdown report includes errors and warnings sections."""
+    out_dir = tmp_path / "out"
+
+    def fake_export_page_tree(**kwargs):
+        raise RuntimeError("Test error")
+
+    monkeypatch.setattr("noteshift.api.export_page_tree", fake_export_page_tree)
+
+    config = NoteshiftConfig(
+        notion_token="t",
+        out_dir=out_dir,
+        overwrite=True,
+        fail_fast=False,  # Continue on error
+    )
+    plan = ExportPlan(page_ids=["p1"], database_ids=[])
+
+    # Run export - it should complete despite errors
+    _ = run_export(plan, config)
+
+    # Check markdown file exists and contains error section
+    markdown_path = out_dir / "reconciliation_report.md"
+    assert markdown_path.exists()
+
+    md_content = markdown_path.read_text(encoding="utf-8")
+    assert "## Errors" in md_content
+    assert "Test error" in md_content
+    assert "p1" in md_content
+    assert "failed" in md_content.lower()
