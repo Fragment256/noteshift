@@ -30,7 +30,7 @@ def test_run_export_validation_errors(tmp_path: Path) -> None:
 def test_run_export_emits_progress_events(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    events: list[tuple[str, str | None]] = []
+    events: list[tuple[str, str | None, str | None]] = []
 
     def fake_export_page_tree(**_kwargs):
         checkpoint = _kwargs["checkpoint"]
@@ -47,17 +47,31 @@ def test_run_export_emits_progress_events(
     )
     plan = ExportPlan(page_ids=["root-page-id"], database_ids=[])
 
-    result = run_export(plan, config, progress=lambda e: events.append((e.type, e.id)))
+    result = run_export(
+        plan,
+        config,
+        progress=lambda e: events.append((e.type, e.id, e.message)),
+    )
 
     assert result.pages_exported == 1
 
     # Ordering invariants
     assert events[0][0] == "phase"
-    assert ("item_start", "root-page-id") in events
-    assert ("item_done", "root-page-id") in events
-    assert any(t == "checkpoint" for t, _ in events)
+    assert any(t == "item_start" and i == "root-page-id" for t, i, _ in events)
+    assert any(t == "item_done" and i == "root-page-id" for t, i, _ in events)
+    assert any(t == "checkpoint" for t, _, _ in events)
     assert events[-1][0] == "summary"
+    assert events[-1][2] is not None
+    assert "attachments=(0 attempted, 0 downloaded, 0 failed)" in str(events[-1][2])
 
-    start_idx = events.index(("item_start", "root-page-id"))
-    done_idx = events.index(("item_done", "root-page-id"))
+    start_idx = next(
+        idx
+        for idx, (t, i, _) in enumerate(events)
+        if t == "item_start" and i == "root-page-id"
+    )
+    done_idx = next(
+        idx
+        for idx, (t, i, _) in enumerate(events)
+        if t == "item_done" and i == "root-page-id"
+    )
     assert start_idx < done_idx
