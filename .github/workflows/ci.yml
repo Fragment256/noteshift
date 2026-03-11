@@ -22,6 +22,27 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Verify release metadata alignment
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import tomllib
+
+          pyproject = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+          manifest = json.loads(pathlib.Path('.release-please-manifest.json').read_text())
+
+          project_version = pyproject['project']['version']
+          manifest_version = manifest['.']
+
+          if project_version != manifest_version:
+              raise SystemExit(
+                  f"Version mismatch: pyproject={project_version} manifest={manifest_version}. "
+                  "Update via release-please flow."
+              )
+          print(f"release metadata aligned at version {project_version}")
+          PY
+
       - name: Install dependencies
         run: uv sync --extra dev --extra test
 
