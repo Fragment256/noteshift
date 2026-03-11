@@ -79,7 +79,7 @@ class NotionClient:
             # If not found, try treating it as a database id
             if r.status_code == 404:
                 db = self.get_database(database_or_data_source_id)
-                ds = (db.get("data_sources") or [])
+                ds = db.get("data_sources") or []
                 if not ds or not ds[0].get("id"):
                     raise RuntimeError(
                         "Database has no data_sources; cannot resolve data_source_id"
