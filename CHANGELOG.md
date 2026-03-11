@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-03-11
+- Fix: resolve Notion inline database IDs (database_id → data_source_id) so DB rows export correctly on Notion API 2025-09-03+.
+- Fix: render bookmark blocks as Markdown links.
+- Tests: add unit coverage for resolution paths and bookmark rendering.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project aims to follow Semantic Versioning.
