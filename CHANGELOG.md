@@ -21,4 +21,5 @@ The format is based on Keep a Changelog, and this project aims to follow Semanti
 - Refreshed README to reflect current CLI behavior and env vars
 - Hardened CI to include formatting, blocking mypy, and stronger coverage gate
 - Expanded deterministic contract and integration smoke validation
-- Release workflow now builds artifacts, creates GitHub releases, and optionally publishes to PyPI
+- Adopted release-please automation for release PR, tagging, and GitHub release flow
+- Release workflow builds artifacts and publishes to PyPI via trusted publishing

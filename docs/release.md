@@ -1,50 +1,40 @@
 # Release process
 
-This repo publishes to **PyPI** via GitHub Actions **trusted publishing**.
+Releases are automated with **release-please** on `main`.
 
-The Release workflow is triggered by pushing a tag that matches `v*`.
+## How it works
 
-## Prereqs
+1. Pushes to `main` run `.github/workflows/release-please.yml`.
+2. release-please opens/updates a release PR with:
+   - version bump in `pyproject.toml`
+   - changelog updates
+3. When that release PR is merged, release-please creates a tag (`vX.Y.Z`) and GitHub Release.
+4. The tag triggers `.github/workflows/release.yml`, which:
+   - runs quality gates
+   - builds artifacts
+   - publishes to PyPI via trusted publishing
 
-- You must land changes to `main` via a PR (branch protection).
-- CI must be green (required checks).
+## Maintainer flow
 
-## Step-by-step
+1) Merge normal feature/fix PRs into `main`.
 
-1) **Merge the release PR**
+2) Wait for release-please to open/update the release PR.
 
-Typical contents:
-- Bump `project.version` in `pyproject.toml`
-- Update `CHANGELOG.md`
+3) Review and merge the release PR.
 
-2) **Create and push the tag**
+4) Verify automation:
+- GitHub Release exists: `https://github.com/Fragment256/noteshift/releases`
+- PyPI shows the new version: `https://pypi.org/project/noteshift/`
 
-From an up-to-date local `main`:
+## Guardrails
 
-```bash
-git checkout main
-git pull
+CI validates release metadata alignment between:
+- `pyproject.toml` project version
+- `.release-please-manifest.json`
 
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-
-3) **Watch the Release workflow**
-
-GitHub Actions → Release
-
-The job should:
-- run quality gates (ruff / mypy / pytest + coverage threshold)
-- build wheel + sdist
-- create a GitHub Release with `dist/*` assets attached
-- publish to PyPI
-
-4) **Verify publication**
-
-- GitHub Release exists: `https://github.com/Fragment256/noteshift/releases/tag/vX.Y.Z`
-- PyPI shows the version: `https://pypi.org/project/noteshift/X.Y.Z/`
+If these drift, CI fails with an actionable error.
 
 ## Notes
 
-- If PyPI is slow to show a new version, wait ~30–60s and refresh.
-- If you see failures, check the workflow logs for the failing step.
+- Do **not** manually edit version numbers on random PRs.
+- Use release-please flow so changelog, tags, and releases stay consistent.
