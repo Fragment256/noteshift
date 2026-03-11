@@ -83,6 +83,24 @@ def test_checkpoint_dedupe_files() -> None:
     assert cp.files_written == ["test.md"]
 
 
+def test_attachment_status_tracking() -> None:
+    """Track attachment attempts, successes, and failures separately."""
+    cp = Checkpoint()
+
+    for _ in range(5):
+        cp.add_attachment_attempt()
+
+    for _ in range(3):
+        cp.add_attachment_success()
+
+    for _ in range(2):
+        cp.add_attachment_failure()
+
+    assert cp.attachments_attempted == 5
+    assert cp.attachments_downloaded == 3
+    assert cp.attachments_failed == 2
+
+
 def test_checkpoint_attachment_legacy_method_increments_downloaded() -> None:
     """Legacy add_attachment remains backward compatible."""
     cp = Checkpoint()

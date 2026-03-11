@@ -165,6 +165,7 @@ def export_page_tree(
                 url, caption, _ = _get_attachment_info(b)
                 if url:
                     result.attachments_attempted += 1
+                    active_checkpoint.add_attachment_attempt()
                     try:
                         filename = Path(
                             url.split("/")[-1].split("?")[0]
@@ -191,9 +192,11 @@ def export_page_tree(
                             )
 
                         result.attachments_downloaded += 1
+                        active_checkpoint.add_attachment_success()
 
                     except Exception as e:  # noqa: BLE001
                         result.attachments_failed += 1
+                        active_checkpoint.add_attachment_failure()
                         result.warnings.append(
                             f"Failed to download attachment {url} for page {title}: {e}"
                         )
