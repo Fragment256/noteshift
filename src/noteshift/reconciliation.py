@@ -37,12 +37,9 @@ class ReconciliationItem:
             "status": self.status,
             "title": self.title,
             "message": self.message,
+            "rows_exported": self.rows_exported,
+            "files_written": self.files_written,
         }
-        # Add database-specific fields if non-zero
-        if self.rows_exported > 0:
-            result["rows_exported"] = self.rows_exported
-        if self.files_written > 0:
-            result["files_written"] = self.files_written
         return result
 
     @classmethod
