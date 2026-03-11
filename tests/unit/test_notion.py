@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from noteshift.notion import NotionClient
 
 
 class _FakeResponse:
-    def __init__(self, payload: dict) -> None:
+    def __init__(self, payload: dict, *, status_code: int = 200) -> None:
         self._payload = payload
+        self.status_code = status_code
         self.content = b"file-bytes"
 
     def raise_for_status(self) -> None:
+        # Tests use this as a no-op; callers may branch on status_code directly.
         return None
 
     def json(self) -> dict:
@@ -88,3 +92,49 @@ def test_download_file_writes_content(monkeypatch, tmp_path: Path) -> None:
 
     assert dest.exists()
     assert dest.read_bytes() == b"file-bytes"
+
+
+def test_resolve_data_source_id_accepts_data_source_id(monkeypatch) -> None:
+    responses = [
+        _FakeResponse({"object": "data_source", "id": "ds-1"}, status_code=200),
+    ]
+
+    monkeypatch.setattr(
+        "noteshift.notion.httpx.Client", lambda **_kwargs: _FakeClient(responses)
+    )
+
+    client = NotionClient(token="secret")
+    assert client.resolve_data_source_id("ds-1") == "ds-1"
+
+
+def test_resolve_data_source_id_falls_back_from_database_id(monkeypatch) -> None:
+    responses = [
+        _FakeResponse({"object": "error"}, status_code=404),
+        _FakeResponse(
+            {"object": "database", "data_sources": [{"id": "ds-2"}]},
+            status_code=200,
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "noteshift.notion.httpx.Client", lambda **_kwargs: _FakeClient(responses)
+    )
+
+    client = NotionClient(token="secret")
+    assert client.resolve_data_source_id("db-1") == "ds-2"
+
+
+def test_resolve_data_source_id_raises_no_data_sources(monkeypatch) -> None:
+    responses = [
+        _FakeResponse({"object": "error"}, status_code=404),
+        _FakeResponse({"object": "database", "data_sources": []}, status_code=200),
+    ]
+
+    monkeypatch.setattr(
+        "noteshift.notion.httpx.Client", lambda **_kwargs: _FakeClient(responses)
+    )
+
+    client = NotionClient(token="secret")
+
+    with pytest.raises(RuntimeError):
+        client.resolve_data_source_id("db-1")

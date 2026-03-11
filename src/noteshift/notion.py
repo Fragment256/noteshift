@@ -84,6 +84,10 @@ class NotionClient:
                     raise RuntimeError(
                         "Database has no data_sources; cannot resolve data_source_id"
                     )
+
+                # Notion databases can theoretically expose multiple backing
+                # data sources. We currently pick the first one as the best
+                # default.
                 return str(ds[0]["id"])
 
             r.raise_for_status()
