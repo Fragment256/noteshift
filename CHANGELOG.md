@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/Fragment256/noteshift/compare/v0.1.4...v0.2.0) (2026-03-26)
+
+
+### Features
+
+* add --frontmatter flag to emit YAML metadata in exported pages ([#89](https://github.com/Fragment256/noteshift/issues/89)) ([49b64ca](https://github.com/Fragment256/noteshift/commit/49b64ca2a2a2a3b2f0cff0ce0f9f5adcfb65b0d6))
+
 ## [0.1.4](https://github.com/Fragment256/noteshift/compare/v0.1.3...v0.1.4) (2026-03-11)
 
 
