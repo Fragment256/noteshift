@@ -6,6 +6,7 @@ from pathlib import Path
 from noteshift.checkpoint import Checkpoint
 from noteshift.db_export import export_child_database
 from noteshift.filenames import FilenamePolicy, NameDeduper
+from noteshift.frontmatter import build_frontmatter
 from noteshift.markdown import (
     indent_lines,
     render_toggle,
@@ -62,6 +63,7 @@ def export_page_tree(
     checkpoint: Checkpoint | None = None,
     force: bool = False,
     max_depth: int = 2,
+    frontmatter: bool = False,
 ) -> ExportResult:
     """Export a page and its subpages.
 
@@ -110,7 +112,10 @@ def export_page_tree(
         # Store the relative path for link mapping
         page_map[page_id] = md_path.relative_to(out_dir).with_suffix("").as_posix()
 
-        lines: list[str] = [f"# {title}", ""]
+        lines: list[str] = []
+        if frontmatter:
+            lines.append(build_frontmatter(page))
+        lines.extend([f"# {title}", ""])
         blocks = client.list_block_children(page_id)
 
         # Process blocks: render content, download attachments

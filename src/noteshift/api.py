@@ -151,6 +151,7 @@ def run_export(
                 checkpoint=checkpoint,
                 force=config.force,
                 max_depth=config.max_depth,
+                frontmatter=config.frontmatter,
             )
             _emit(progress, ProgressEvent(type="item_done", id=page_id, title="page"))
         except Exception as exc:  # noqa: BLE001
