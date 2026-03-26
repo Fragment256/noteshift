@@ -12,6 +12,7 @@ class NoteshiftConfig:
     force: bool = False
     max_depth: int = 2
     fail_fast: bool = False
+    frontmatter: bool = False
 
 
 @dataclass

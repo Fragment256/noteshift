@@ -178,6 +178,74 @@ def test_export_rejects_empty_plan(tmp_path: Path) -> None:
     assert "Export plan is empty" in result.output
 
 
+def test_export_frontmatter_flag_forwarded_to_config(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """--frontmatter flag is forwarded to NoteshiftConfig."""
+    captured: dict[str, object] = {}
+
+    def ok_preflight(_plan, config):  # type: ignore[no-untyped-def]
+        captured["config"] = config
+        return PreflightReport(ok=True)
+
+    monkeypatch.setattr("noteshift.cli.preflight", ok_preflight)
+    monkeypatch.setattr(
+        "noteshift.cli.run_export", lambda **_kwargs: _ok_result(tmp_path)
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--page-id",
+            "page-1",
+            "--out",
+            str(tmp_path / "out"),
+            "--notion-token",
+            "secret",
+            "--frontmatter",
+        ],
+    )
+
+    assert result.exit_code == 0
+    from noteshift.types import NoteshiftConfig
+
+    config = captured["config"]
+    assert isinstance(config, NoteshiftConfig)
+    assert config.frontmatter is True
+
+
+def test_export_frontmatter_default_is_false(monkeypatch, tmp_path: Path) -> None:
+    """Without --frontmatter, config.frontmatter is False."""
+    captured: dict[str, object] = {}
+
+    def ok_preflight(_plan, config):  # type: ignore[no-untyped-def]
+        captured["config"] = config
+        return PreflightReport(ok=True)
+
+    monkeypatch.setattr("noteshift.cli.preflight", ok_preflight)
+    monkeypatch.setattr(
+        "noteshift.cli.run_export", lambda **_kwargs: _ok_result(tmp_path)
+    )
+
+    runner.invoke(
+        app,
+        [
+            "--page-id",
+            "page-1",
+            "--out",
+            str(tmp_path / "out"),
+            "--notion-token",
+            "secret",
+        ],
+    )
+
+    from noteshift.types import NoteshiftConfig
+
+    config = captured["config"]
+    assert isinstance(config, NoteshiftConfig)
+    assert config.frontmatter is False
+
+
 def test_export_multiple_page_and_database_ids(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {}
 

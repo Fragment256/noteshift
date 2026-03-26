@@ -163,6 +163,7 @@ def run_export(
                 checkpoint=checkpoint,
                 force=config.force,
                 max_depth=config.max_depth,
+                frontmatter=config.frontmatter,
             )
             recon_report.add_success(page_id, "page")
             _emit(progress, ProgressEvent(type="item_done", id=page_id, title="page"))

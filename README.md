@@ -26,6 +26,7 @@ NoteShift is focused on solving those pains first.
 - Preserve and download attachments
 - Resume interrupted runs via checkpoint file
 - Emit migration report (`migration_report.json` + `.md`)
+- Optionally emit YAML frontmatter with Notion metadata in each exported page
 
 ## Documentation
 
@@ -67,6 +68,33 @@ noteshift export \
   --max-depth 2 \
   --overwrite
 ```
+
+## Frontmatter
+
+Pass `--frontmatter` to include YAML frontmatter at the top of every exported markdown file:
+
+```bash
+noteshift export \
+  --page-id "<notion-page-id>" \
+  --out ./export \
+  --frontmatter
+```
+
+Each `index.md` will begin with a block like:
+
+```yaml
+---
+notionId: "abc12345-..."
+notionUrl: "https://www.notion.so/..."
+createdAt: "2024-01-01T10:00:00.000Z"
+updatedAt: "2024-06-15T14:30:00.000Z"
+title: "My Page"
+---
+```
+
+For pages that live inside a Notion database, supported property types are also included as additional keys (`select`, `multi_select`, `date`, `checkbox`, `number`, `url`, `email`, `phone_number`, `rich_text`). Property names are lowercased and spaces are replaced with underscores.
+
+Frontmatter is off by default so existing exports are unaffected.
 
 ## Output
 

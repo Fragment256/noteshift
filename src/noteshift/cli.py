@@ -50,6 +50,14 @@ def export(
         "--max-depth",
         help="Maximum recursion depth when exporting page trees.",
     ),
+    frontmatter: bool = typer.Option(
+        False,
+        "--frontmatter",
+        help=(
+            "Prepend YAML frontmatter (notionId, notionUrl, timestamps, "
+            "title, db properties) to each exported markdown file."
+        ),
+    ),
 ):
     """Export Notion page trees and/or databases to Markdown."""
 
@@ -69,6 +77,7 @@ def export(
         overwrite=overwrite,
         force=force,
         max_depth=max_depth,
+        frontmatter=frontmatter,
     )
     plan = ExportPlan(page_ids=page_ids, database_ids=database_ids)
 
