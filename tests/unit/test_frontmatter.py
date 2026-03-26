@@ -1,8 +1,15 @@
 """Tests for frontmatter generation."""
 
-import pytest
-
 from noteshift.frontmatter import build_frontmatter
+
+
+def _parse_fm(result: str) -> dict:
+    """Parse the YAML body from a frontmatter string bounded by --- delimiters."""
+    import yaml
+
+    parts = result.split("---\n")
+    # parts[0] is empty, parts[1] is the YAML body, parts[2] is content after
+    return yaml.safe_load(parts[1])
 
 
 # ---------------------------------------------------------------------------
@@ -169,21 +176,15 @@ class TestBuildFrontmatterCoreFields:
         assert "My Page" in result
 
     def test_valid_yaml(self) -> None:
-        import yaml
-
         result = build_frontmatter(STANDALONE_PAGE)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        parsed = yaml.safe_load(inner)
+        parsed = _parse_fm(result)
         assert isinstance(parsed, dict)
         assert parsed["notionId"] == "abc12345-0000-0000-0000-000000000000"
         assert parsed["title"] == "My Page"
 
     def test_key_names(self) -> None:
-        import yaml
-
         result = build_frontmatter(STANDALONE_PAGE)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        parsed = yaml.safe_load(inner)
+        parsed = _parse_fm(result)
         assert "notionId" in parsed
         assert "notionUrl" in parsed
         assert "createdAt" in parsed
@@ -198,28 +199,19 @@ class TestBuildFrontmatterCoreFields:
 
 class TestBuildFrontmatterMissingFields:
     def test_missing_url_produces_null(self) -> None:
-        import yaml
-
         result = build_frontmatter(PAGE_MISSING_OPTIONAL_FIELDS)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        parsed = yaml.safe_load(inner)
+        parsed = _parse_fm(result)
         assert parsed["notionUrl"] is None
 
     def test_missing_timestamps_produce_null(self) -> None:
-        import yaml
-
         result = build_frontmatter(PAGE_MISSING_OPTIONAL_FIELDS)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        parsed = yaml.safe_load(inner)
+        parsed = _parse_fm(result)
         assert parsed["createdAt"] is None
         assert parsed["updatedAt"] is None
 
     def test_still_has_all_core_keys(self) -> None:
-        import yaml
-
         result = build_frontmatter(PAGE_MISSING_OPTIONAL_FIELDS)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        parsed = yaml.safe_load(inner)
+        parsed = _parse_fm(result)
         for key in ("notionId", "notionUrl", "createdAt", "updatedAt", "title"):
             assert key in parsed
 
@@ -231,11 +223,7 @@ class TestBuildFrontmatterMissingFields:
 
 class TestBuildFrontmatterDatabaseProperties:
     def _parsed(self, page: dict) -> dict:
-        import yaml
-
-        result = build_frontmatter(page)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        return yaml.safe_load(inner)
+        return _parse_fm(build_frontmatter(page))
 
     def test_select_property(self) -> None:
         parsed = self._parsed(DATABASE_PAGE)
@@ -292,11 +280,7 @@ class TestBuildFrontmatterDatabaseProperties:
 
 class TestBuildFrontmatterEmptyProperties:
     def _parsed(self, page: dict) -> dict:
-        import yaml
-
-        result = build_frontmatter(page)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        return yaml.safe_load(inner)
+        return _parse_fm(build_frontmatter(page))
 
     def test_empty_select_is_null(self) -> None:
         parsed = self._parsed(PAGE_EMPTY_PROPERTIES)
@@ -346,8 +330,6 @@ class TestInternalHelpers:
 
     def test_non_dict_property_value_skipped(self) -> None:
         """build_frontmatter skips properties whose value is not a dict."""
-        import yaml
-
         page = {
             "id": "x",
             "properties": {
@@ -359,8 +341,7 @@ class TestInternalHelpers:
             },
         }
         result = build_frontmatter(page)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        parsed = yaml.safe_load(inner)
+        parsed = _parse_fm(result)
         assert "bad_prop" not in parsed
 
     def test_extract_property_value_unknown_type_returns_none(self) -> None:
@@ -372,11 +353,7 @@ class TestInternalHelpers:
 
 class TestBuildFrontmatterUnsupportedProperties:
     def _parsed(self, page: dict) -> dict:
-        import yaml
-
-        result = build_frontmatter(page)
-        inner = result.strip().lstrip("---").rstrip("---").strip()
-        return yaml.safe_load(inner)
+        return _parse_fm(build_frontmatter(page))
 
     def test_people_property_skipped(self) -> None:
         parsed = self._parsed(PAGE_UNSUPPORTED_PROPERTIES)

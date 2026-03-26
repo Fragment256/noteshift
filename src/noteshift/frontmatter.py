@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-
 # Property types we know how to extract a scalar/list value from.
 _SUPPORTED_PROPERTY_TYPES = frozenset(
     {

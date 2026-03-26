@@ -53,7 +53,10 @@ def export(
     frontmatter: bool = typer.Option(
         False,
         "--frontmatter",
-        help="Emit YAML frontmatter (notionId, notionUrl, timestamps, title, properties) in each exported markdown file.",
+        help=(
+            "Prepend YAML frontmatter (notionId, notionUrl, timestamps, "
+            "title, db properties) to each exported markdown file."
+        ),
     ),
 ):
     """Export Notion page trees and/or databases to Markdown."""
