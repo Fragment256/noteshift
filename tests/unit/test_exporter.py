@@ -354,7 +354,9 @@ class TestExportResult:
         assert result.files_written == 0
         assert result.databases_exported == 0
         assert result.rows_exported == 0
+        assert result.attachments_attempted == 0
         assert result.attachments_downloaded == 0
+        assert result.attachments_failed == 0
         assert result.warnings == []
 
     def test_export_result_accumulation(self) -> None:

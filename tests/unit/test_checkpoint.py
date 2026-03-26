@@ -58,7 +58,9 @@ def test_checkpoint_get_stats() -> None:
     cp.add_database("d1")
     cp.add_file("f1.md")
     cp.add_file("f2.md")
-    cp.add_attachment()
+    cp.add_attachment_attempt()
+    cp.add_attachment_success()
+    cp.add_attachment_failure()
     cp.add_rows(5)
     cp.add_warning("w1")
 
@@ -66,7 +68,9 @@ def test_checkpoint_get_stats() -> None:
     assert stats["pages_exported"] == 2
     assert stats["databases_exported"] == 1
     assert stats["files_written"] == 2
+    assert stats["attachments_attempted"] == 1
     assert stats["attachments_downloaded"] == 1
+    assert stats["attachments_failed"] == 1
     assert stats["rows_exported"] == 5
     assert stats["warnings_count"] == 1
 
@@ -77,3 +81,32 @@ def test_checkpoint_dedupe_files() -> None:
     cp.add_file("test.md")
     cp.add_file("test.md")  # duplicate
     assert cp.files_written == ["test.md"]
+
+
+def test_attachment_status_tracking() -> None:
+    """Track attachment attempts, successes, and failures separately."""
+    cp = Checkpoint()
+
+    for _ in range(5):
+        cp.add_attachment_attempt()
+
+    for _ in range(3):
+        cp.add_attachment_success()
+
+    for _ in range(2):
+        cp.add_attachment_failure()
+
+    assert cp.attachments_attempted == 5
+    assert cp.attachments_downloaded == 3
+    assert cp.attachments_failed == 2
+
+
+def test_checkpoint_attachment_legacy_method_increments_downloaded() -> None:
+    """Legacy add_attachment remains backward compatible."""
+    cp = Checkpoint()
+
+    cp.add_attachment()
+
+    assert cp.attachments_attempted == 0
+    assert cp.attachments_downloaded == 1
+    assert cp.attachments_failed == 0

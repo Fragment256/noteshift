@@ -10,6 +10,7 @@ from noteshift.db_export import export_child_database
 from noteshift.events import ProgressEvent, ProgressSink
 from noteshift.exporter import export_page_tree
 from noteshift.notion import NotionClient
+from noteshift.reconciliation import ReconciliationReport
 from noteshift.types import ExportPlan, ExportResult, NoteshiftConfig, PreflightReport
 
 
@@ -134,14 +135,25 @@ def run_export(
 
     checkpoint_path = out_dir / ".checkpoint.json"
     checkpoint = Checkpoint.load(checkpoint_path)
-    if config.force:
-        checkpoint = Checkpoint()
 
-    all_errors: list[str] = []
+    # Initialize reconciliation report (issue #50)
+    recon_report = ReconciliationReport.create(is_resumed=bool(checkpoint.timestamp))
 
     _emit(progress, ProgressEvent(type="phase", message="starting_export"))
 
+    # Check for items already exported from checkpoint (resumed export)
+    for page_id in checkpoint.page_ids:
+        if page_id in plan.page_ids:
+            recon_report.add_skipped(page_id, "page", "already exported (checkpoint)")
+
+    for db_id in checkpoint.database_ids:
+        if db_id in plan.database_ids:
+            recon_report.add_skipped(db_id, "database", "already exported (checkpoint)")
+
     for page_id in plan.page_ids:
+        if page_id in checkpoint.page_ids:
+            continue  # Skip already exported (already recorded above)
+
         _emit(progress, ProgressEvent(type="item_start", id=page_id, title="page"))
         try:
             export_page_tree(
@@ -153,53 +165,89 @@ def run_export(
                 max_depth=config.max_depth,
                 frontmatter=config.frontmatter,
             )
+            recon_report.add_success(page_id, "page")
             _emit(progress, ProgressEvent(type="item_done", id=page_id, title="page"))
         except Exception as exc:  # noqa: BLE001
             msg = f"Failed to export page {page_id}: {exc}"
-            all_errors.append(msg)
+            recon_report.add_failure(page_id, "page", msg)
             _emit(
                 progress,
                 ProgressEvent(type="error", id=page_id, title="page", message=msg),
             )
             if config.fail_fast:
+                # Save checkpoint and finalize reconciliation report before raising
+                checkpoint.save(checkpoint_path)
+                recon_report.finalize()
+                recon_path = out_dir / "reconciliation_report.json"
+                recon_path.write_text(recon_report.to_json(), encoding="utf-8")
                 raise RuntimeError(msg) from exc
 
     if plan.database_ids:
         client = NotionClient(token)
         for database_id in plan.database_ids:
+            # Skip if already exported via checkpoint
+            try:
+                resolved_id = client.resolve_data_source_id(database_id)
+            except Exception:
+                resolved_id = database_id  # Fallback
+
+            if resolved_id in checkpoint.database_ids:
+                # Record as skipped (resumed export) even if the plan uses a
+                # database_id and the checkpoint stores the resolved data_source_id.
+                recon_report.add_skipped(
+                    resolved_id,
+                    "database",
+                    "already exported (checkpoint)",
+                )
+                continue
+
             _emit(
                 progress,
                 ProgressEvent(type="item_start", id=database_id, title="database"),
             )
             try:
-                schema = client.get_data_source(database_id)
+                data_source_id = client.resolve_data_source_id(database_id)
+                schema = client.get_data_source(data_source_id)
                 title = _database_title(schema)
                 db_result = export_child_database(
                     client=client,
-                    data_source_id=database_id,
+                    data_source_id=data_source_id,
                     title=title,
                     out_dir=out_dir,
                 )
-                checkpoint.add_database(database_id)
+                checkpoint.add_database(data_source_id)
                 checkpoint.add_rows(db_result.rows_exported)
+
+                # Record success in reconciliation report with db summary
+                recon_report.add_success(
+                    data_source_id,
+                    "database",
+                    title=title,
+                    rows_exported=db_result.rows_exported,
+                    files_written=db_result.files_written,
+                )
+
                 for warning in db_result.warnings:
                     checkpoint.add_warning(warning)
+                    recon_report.add_warning(warning)
                     _emit(
                         progress,
                         ProgressEvent(
                             type="warning",
-                            id=database_id,
+                            id=data_source_id,
                             title="database",
                             message=warning,
                         ),
                     )
                 _emit(
                     progress,
-                    ProgressEvent(type="item_done", id=database_id, title="database"),
+                    ProgressEvent(
+                        type="item_done", id=data_source_id, title="database"
+                    ),
                 )
             except Exception as exc:  # noqa: BLE001
                 msg = f"Failed to export database {database_id}: {exc}"
-                all_errors.append(msg)
+                recon_report.add_failure(database_id, "database", msg)
                 _emit(
                     progress,
                     ProgressEvent(
@@ -207,10 +255,21 @@ def run_export(
                     ),
                 )
                 if config.fail_fast:
+                    # Save checkpoint and finalize reconciliation report before raising
+                    checkpoint.save(checkpoint_path)
+                    recon_report.finalize()
+                    recon_path = out_dir / "reconciliation_report.json"
+                    recon_path.write_text(recon_report.to_json(), encoding="utf-8")
                     raise RuntimeError(msg) from exc
 
     checkpoint.save(checkpoint_path)
     _emit(progress, ProgressEvent(type="checkpoint", message=str(checkpoint_path)))
+
+    # Finalize + write reconciliation report
+    recon_report.finalize()
+    from noteshift.reconciliation import write_reconciliation_report
+
+    recon_path = write_reconciliation_report(recon_report, out_dir)
 
     report_path, report_errors = _write_migration_report(out_dir, checkpoint)
 
@@ -221,9 +280,11 @@ def run_export(
         pages_exported=len(checkpoint.page_ids),
         databases_exported=len(checkpoint.database_ids),
         rows_exported=checkpoint.rows_exported,
+        attachments_attempted=checkpoint.attachments_attempted,
         attachments_downloaded=checkpoint.attachments_downloaded,
+        attachments_failed=checkpoint.attachments_failed,
         warnings=list(checkpoint.warnings),
-        errors=all_errors + report_errors,
+        errors=recon_report.errors + report_errors,
     )
 
     _emit(
@@ -234,7 +295,10 @@ def run_export(
                 f"pages={summary.pages_exported}, "
                 f"databases={summary.databases_exported}, "
                 f"rows={summary.rows_exported}, "
-                f"attachments={summary.attachments_downloaded}"
+                f"attachments="
+                f"({summary.attachments_attempted} attempted, "
+                f"{summary.attachments_downloaded} downloaded, "
+                f"{summary.attachments_failed} failed)"
             ),
         ),
     )

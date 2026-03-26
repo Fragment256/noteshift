@@ -19,7 +19,9 @@ class Checkpoint:
     # Files written (relative paths from out_dir)
     files_written: list[str] = field(default_factory=list)
     # Statistics
+    attachments_attempted: int = 0
     attachments_downloaded: int = 0
+    attachments_failed: int = 0
     rows_exported: int = 0
     # Warnings accumulated
     warnings: list[str] = field(default_factory=list)
@@ -38,7 +40,9 @@ class Checkpoint:
                 page_ids=set(data.get("page_ids", [])),
                 database_ids=set(data.get("database_ids", [])),
                 files_written=data.get("files_written", []),
+                attachments_attempted=data.get("attachments_attempted", 0),
                 attachments_downloaded=data.get("attachments_downloaded", 0),
+                attachments_failed=data.get("attachments_failed", 0),
                 rows_exported=data.get("rows_exported", 0),
                 warnings=data.get("warnings", []),
             )
@@ -56,7 +60,9 @@ class Checkpoint:
             "page_ids": sorted(self.page_ids),
             "database_ids": sorted(self.database_ids),
             "files_written": self.files_written,
+            "attachments_attempted": self.attachments_attempted,
             "attachments_downloaded": self.attachments_downloaded,
+            "attachments_failed": self.attachments_failed,
             "rows_exported": self.rows_exported,
             "warnings": self.warnings,
         }
@@ -80,8 +86,18 @@ class Checkpoint:
         if rel_path not in self.files_written:
             self.files_written.append(rel_path)
 
-    def add_attachment(self) -> None:
+    def add_attachment_attempt(self) -> None:
+        self.attachments_attempted += 1
+
+    def add_attachment_success(self) -> None:
         self.attachments_downloaded += 1
+
+    def add_attachment_failure(self) -> None:
+        self.attachments_failed += 1
+
+    def add_attachment(self) -> None:
+        """Legacy method for backward compatibility."""
+        self.add_attachment_success()
 
     def add_rows(self, count: int) -> None:
         self.rows_exported += count
@@ -94,7 +110,9 @@ class Checkpoint:
             "pages_exported": len(self.page_ids),
             "databases_exported": len(self.database_ids),
             "files_written": len(self.files_written),
+            "attachments_attempted": self.attachments_attempted,
             "attachments_downloaded": self.attachments_downloaded,
+            "attachments_failed": self.attachments_failed,
             "rows_exported": self.rows_exported,
             "warnings_count": len(self.warnings),
         }

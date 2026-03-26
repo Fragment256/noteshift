@@ -30,7 +30,7 @@ def test_run_export_validation_errors(tmp_path: Path) -> None:
 def test_run_export_emits_progress_events(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    events: list[tuple[str, str | None]] = []
+    events: list[tuple[str, str | None, str | None]] = []
 
     def fake_export_page_tree(**_kwargs):
         checkpoint = _kwargs["checkpoint"]
@@ -47,17 +47,65 @@ def test_run_export_emits_progress_events(
     )
     plan = ExportPlan(page_ids=["root-page-id"], database_ids=[])
 
-    result = run_export(plan, config, progress=lambda e: events.append((e.type, e.id)))
+    result = run_export(
+        plan,
+        config,
+        progress=lambda e: events.append((e.type, e.id, e.message)),
+    )
 
     assert result.pages_exported == 1
 
     # Ordering invariants
     assert events[0][0] == "phase"
-    assert ("item_start", "root-page-id") in events
-    assert ("item_done", "root-page-id") in events
-    assert any(t == "checkpoint" for t, _ in events)
+    assert any(t == "item_start" and i == "root-page-id" for t, i, _ in events)
+    assert any(t == "item_done" and i == "root-page-id" for t, i, _ in events)
+    assert any(t == "checkpoint" for t, _, _ in events)
     assert events[-1][0] == "summary"
+    assert events[-1][2] is not None
+    assert "attachments=(0 attempted, 0 downloaded, 0 failed)" in str(events[-1][2])
 
-    start_idx = events.index(("item_start", "root-page-id"))
-    done_idx = events.index(("item_done", "root-page-id"))
+    start_idx = next(
+        idx
+        for idx, (t, i, _) in enumerate(events)
+        if t == "item_start" and i == "root-page-id"
+    )
+    done_idx = next(
+        idx
+        for idx, (t, i, _) in enumerate(events)
+        if t == "item_done" and i == "root-page-id"
+    )
     assert start_idx < done_idx
+
+
+def test_run_export_tracks_attachment_status(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Test that attachment status tracking fields are correctly populated."""
+
+    def fake_export_page_tree(**_kwargs):
+        # Simulate attachment download: 3 total, 2 success, 1 failure
+        # The exporter updates both result and checkpoint
+        checkpoint = _kwargs["checkpoint"]
+        for _ in range(3):
+            checkpoint.add_attachment_attempt()
+        for _ in range(2):
+            checkpoint.add_attachment_success()
+        checkpoint.add_attachment_failure()
+        checkpoint.add_warning("Failed to download attachment 3")
+
+    monkeypatch.setattr("noteshift.api.export_page_tree", fake_export_page_tree)
+
+    config = NoteshiftConfig(
+        notion_token="test-token",
+        out_dir=tmp_path / "out",
+        overwrite=True,
+    )
+    plan = ExportPlan(page_ids=["page-with-attachments"], database_ids=[])
+
+    result = run_export(plan, config)
+
+    # Verify attachment tracking fields are present and correct
+    assert result.attachments_attempted == 3
+    assert result.attachments_downloaded == 2
+    assert result.attachments_failed == 1
+    assert len(result.warnings) == 1

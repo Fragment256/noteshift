@@ -1,6 +1,6 @@
 [project]
 name = "noteshift"
-version = "0.1.0"
+version = "0.1.4"
 description = "Export Notion pages and databases to Obsidian-friendly Markdown."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -57,7 +57,7 @@ ignore = ["B008"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-addopts = "-q"
+addopts = "-q -m 'not contract'"
 testpaths = ["tests"]
 markers = [
     "contract: deterministic API contract tests (vcr-backed)",

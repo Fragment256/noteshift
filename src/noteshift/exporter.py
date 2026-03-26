@@ -23,7 +23,9 @@ class ExportResult:
     warnings: list[str] = field(default_factory=list)
     databases_exported: int = 0
     rows_exported: int = 0
+    attachments_attempted: int = 0
     attachments_downloaded: int = 0
+    attachments_failed: int = 0
 
 
 def _page_title(page: dict) -> str:
@@ -124,10 +126,20 @@ def export_page_tree(
             btype = b.get("type")
 
             if btype == "child_database":
-                ds_id = b.get("id")
-                if not ds_id:
+                raw_id = b.get("id")
+                if not raw_id:
                     result.warnings.append(
                         f"child_database missing id on page {page_id}"
+                    )
+                    continue
+
+                # Notion often provides a *database id* here; resolve to data_source_id.
+                try:
+                    ds_id = client.resolve_data_source_id(raw_id)
+                except Exception as exc:  # noqa: BLE001
+                    result.warnings.append(
+                        "Failed to resolve data source id for child_database "
+                        f"{raw_id}: {exc}"
                     )
                     continue
 
@@ -157,6 +169,8 @@ def export_page_tree(
             elif btype in {"image", "file"}:
                 url, caption, _ = _get_attachment_info(b)
                 if url:
+                    result.attachments_attempted += 1
+                    active_checkpoint.add_attachment_attempt()
                     try:
                         filename = Path(
                             url.split("/")[-1].split("?")[0]
@@ -183,8 +197,11 @@ def export_page_tree(
                             )
 
                         result.attachments_downloaded += 1
+                        active_checkpoint.add_attachment_success()
 
                     except Exception as e:  # noqa: BLE001
+                        result.attachments_failed += 1
+                        active_checkpoint.add_attachment_failure()
                         result.warnings.append(
                             f"Failed to download attachment {url} for page {title}: {e}"
                         )
@@ -309,6 +326,12 @@ def _render_blocks(
                 body = _render_blocks(client, children, indent="", page_map=page_map)
             out.extend(indent_lines(render_toggle(summary, body), indent))
             out.append("")
+
+        elif btype == "bookmark":
+            url = payload.get("url")
+            if url:
+                out.append(indent + f"[{url}]({url})")
+                out.append("")
 
         else:
             # For unhandled block types, preserve children if they exist
